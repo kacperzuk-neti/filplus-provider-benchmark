@@ -1,0 +1,7 @@
+[package]
+name = "scheduler"
+version = "0.1.0"
+edition = "2021"
+authors = ["Michał Mach <michal.mach@neti-soft.com>"]
+
+[dependencies]
