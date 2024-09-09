@@ -1,0 +1,42 @@
+use rabbitmq::JobMessage;
+use reqwest::Client;
+use std::error::Error;
+use tokio::time::Instant;
+use tracing::{debug, info};
+
+pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send + Sync>> {
+    info!("Processing HEAD job");
+
+    let client = Client::new();
+    let num_requests = 10; // Number of times to send the HEAD request
+    let mut latencies: Vec<f64> = Vec::with_capacity(num_requests);
+
+    for _ in 0..num_requests {
+        let start_time = Instant::now(); // Start timing
+
+        // Send a HEAD request to the URL
+        let response = client.head(&payload.url).send().await?;
+
+        // Measure the elapsed time
+        let elapsed = start_time.elapsed();
+        let latency_ms = elapsed.as_secs_f64() * 1000.0; // Convert to milliseconds
+        latencies.push(latency_ms);
+
+        // Print the status code to verify the request
+        debug!("Response Status: {}", response.status());
+    }
+
+    // Calculate min, max, and average latencies
+    let min_latency = latencies.iter().cloned().fold(f64::INFINITY, f64::min);
+    let max_latency = latencies.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let avg_latency = latencies.iter().sum::<f64>() / latencies.len() as f64;
+
+    debug!("Latency Statistics:");
+    debug!("Average: {:.2} ms", avg_latency);
+    debug!("Min: {:.2} ms", min_latency);
+    debug!("Max: {:.2} ms", max_latency);
+
+    info!("Finished processing HEAD job");
+
+    Ok("latency result".to_string())
+}
