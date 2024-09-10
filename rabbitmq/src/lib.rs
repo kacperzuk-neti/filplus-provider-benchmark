@@ -1,7 +1,7 @@
 use amqprs::{
     channel::{
-         BasicConsumeArguments, BasicPublishArguments, Channel,
-        ExchangeDeclareArguments, ExchangeType, QueueBindArguments, QueueDeclareArguments,
+        BasicConsumeArguments, BasicPublishArguments, Channel, ExchangeDeclareArguments,
+        ExchangeType, QueueBindArguments, QueueDeclareArguments,
     },
     connection::{Connection, OpenConnectionArguments},
     consumer::AsyncConsumer,
@@ -13,11 +13,12 @@ use uuid::Uuid;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JobMessage {
     pub url: String,
-    pub start_time: i64,
+    pub start_time: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct ResultMessage { // TODO: ResultMessage needs complete overhaul !
+pub struct ResultMessage {
+    // TODO: ResultMessage needs complete overhaul !
     pub bandwidth: u32,
     pub latency: u32,
     pub status_code: u32,
@@ -63,12 +64,8 @@ pub struct QueueHandler {
     channel: Option<Channel>,
 }
 
-
 impl QueueHandler {
-    pub async fn setup(
-        &mut self,
-        addr: &str,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn setup(&mut self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
         // Open connection
         let connection =
             Connection::open(&OpenConnectionArguments::new(&addr, 5672, "guest", "guest")).await?;
@@ -109,10 +106,7 @@ impl QueueHandler {
         Ok(())
     }
 
-    pub async fn publish(
-        &self,
-        message: &Message,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn publish(&self, message: &Message) -> Result<(), Box<dyn std::error::Error>> {
         let serialized_message = serde_json::to_vec(message)?;
         let args = BasicPublishArguments::new(self.exchange_name, self.routing_key);
 
@@ -125,10 +119,7 @@ impl QueueHandler {
         Ok(())
     }
 
-    pub async fn subscribe<C>(
-        &self,
-        consumer: C,
-    ) -> Result<(), Box<dyn std::error::Error>>
+    pub async fn subscribe<C>(&self, consumer: C) -> Result<(), Box<dyn std::error::Error>>
     where
         C: AsyncConsumer + Send + Sync + 'static,
     {
@@ -173,4 +164,3 @@ pub const CONFIG_WORKER_A_RESULT: QueueHandler = QueueHandler {
     connection: None,
     channel: None,
 };
-

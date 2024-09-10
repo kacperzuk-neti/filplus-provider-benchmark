@@ -20,7 +20,7 @@ impl JobConsumer {
     pub fn new(result_sender: mpsc::Sender<Message>) -> Self {
         Self { result_sender }
     }
-    
+
     async fn parse_message(&self, content_str: &str) -> Option<(Uuid, JobMessage)> {
         match serde_json::from_str::<Message>(content_str) {
             Ok(Message::WorkerJob { job_id, payload }) => Some((job_id, payload)),

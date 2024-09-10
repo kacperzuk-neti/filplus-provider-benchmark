@@ -37,7 +37,7 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
 
     let output = Command::new("ping")
         .arg("-c")
-        .arg("10") 
+        .arg("10")
         .arg(ip_address.to_string())
         .output()?;
 

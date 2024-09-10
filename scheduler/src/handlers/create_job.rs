@@ -4,10 +4,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Json as ResponseJson},
 };
-use chrono::{Duration, Utc};
-use rabbitmq::{JobMessage, Message, QueueHandler};
+use rabbitmq::{JobMessage, Message};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{debug, info};
 use url::Url;
 use uuid::Uuid;
@@ -44,14 +44,14 @@ pub async fn handle(
         return (StatusCode::BAD_REQUEST, ResponseJson(error_response)).into_response();
     }
 
-    let now = Utc::now();
-    debug!("Current timestamp: {}", now);
-    let now_plus = now + Duration::seconds(5); // TODO: make it a config ??
-    debug!("New timestamp (after 5 seconds): {}", now_plus);
+    let now = SystemTime::now();
+    debug!("Current timestamp: {:?}", now);
+    let now_plus = now + Duration::new(5, 0); // TODO: make it a config ??
+    debug!("New timestamp (after 5 seconds): {:?}", now_plus);
 
     let job_id = Uuid::new_v4();
 
-    let start_time: i64 = now_plus.timestamp();
+    let start_time: u64 = now_plus.duration_since(UNIX_EPOCH).unwrap().as_secs();
     let job_message = Message::WorkerJob {
         job_id,
         payload: JobMessage {

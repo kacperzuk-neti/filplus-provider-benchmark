@@ -29,9 +29,6 @@ async fn main() {
 
     info!("Scheduler started");
 
-    // Initialize in memory data store
-    let app_state = Arc::new(state::AppState::new());
-
     let addr = Arc::new(std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
 
     let mut job_queue = QueueHandler::clone(&CONFIG_WORKER_A_JOB);
