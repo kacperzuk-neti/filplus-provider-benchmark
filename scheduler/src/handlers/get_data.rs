@@ -1,8 +1,6 @@
 use crate::state::AppState;
 use axum::{
-    extract::{Extension, Query},
-    http::StatusCode,
-    response::{IntoResponse, Json as ResponseJson},
+    debug_handler, extract::{Query, State}, http::StatusCode, response::{IntoResponse, Json as ResponseJson}
 };
 use rabbitmq::ResultMessage;
 use serde::{Deserialize, Serialize};
@@ -25,9 +23,10 @@ pub struct ErrorResponse {
     error: String,
 }
 
+#[debug_handler]
 pub async fn handle(
     Query(params): Query<GetDataQuery>,
-    Extension(state): Extension<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
     // Validate the job_id
     let job_id = match Uuid::parse_str(&params.job_id) {

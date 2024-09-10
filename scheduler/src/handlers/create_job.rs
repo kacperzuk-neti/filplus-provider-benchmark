@@ -1,15 +1,18 @@
 use axum::{
     debug_handler,
-    extract::{Extension, Json},
+    extract::{Json, State},
     http::StatusCode,
     response::{IntoResponse, Json as ResponseJson},
 };
 use chrono::{Duration, Utc};
 use rabbitmq::{JobMessage, Message, QueueHandler};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::{debug, info};
 use url::Url;
 use uuid::Uuid;
+
+use crate::state::AppState;
 
 #[derive(Deserialize)]
 pub struct JobInput {
@@ -28,7 +31,7 @@ pub struct ErrorResponse {
 
 #[debug_handler]
 pub async fn handle(
-    Extension(job_queue): Extension<QueueHandler>,
+    State(state): State<Arc<AppState>>,
     Json(payload): Json<JobInput>,
 ) -> impl IntoResponse {
     let url = Url::parse(&payload.url);
@@ -59,7 +62,7 @@ pub async fn handle(
 
     info!("Publishing job message: {:?}", job_message);
 
-    match job_queue.publish(&job_message).await {
+    match state.job_queue.publish(&job_message).await {
         Ok(_) => info!("Job message published successfully"),
         Err(e) => {
             info!("Failed to publish job message: {:?}", e);

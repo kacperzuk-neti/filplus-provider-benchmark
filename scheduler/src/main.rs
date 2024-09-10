@@ -1,8 +1,10 @@
-use axum::{extract::Extension, Router};
+use axum::Router;
 use dotenv::dotenv;
 use handlers::data_consumer::DataConsumer;
 use rabbitmq::*;
+use state::AppState;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{error, info};
@@ -38,6 +40,9 @@ async fn main() {
         Err(e) => error!("Failed to set up job queue: {}", e), // TODO: panic ?!
     }
 
+    // Initialize in memory data store
+    let app_state = Arc::new(AppState::new(job_queue));
+
     let mut data_queue = QueueHandler::clone(&CONFIG_WORKER_A_RESULT);
     match data_queue.setup(&addr).await {
         Ok(_) => info!("Successfully set up data queue"),
@@ -49,15 +54,16 @@ async fn main() {
         error!("Failed to start consumer: {}", e);
     }
 
-    let app: Router = Router::new().merge(routes::create_routes()).layer(
-        ServiceBuilder::new()
-            .layer(TraceLayer::new_for_http())
-            .layer(Extension(app_state))
-            .layer(Extension(job_queue)),
-    );
+    let app = Router::new()
+        .merge(routes::create_routes())
+        .layer(
+            ServiceBuilder::new().layer(TraceLayer::new_for_http()),
+            // TODO: add something to authenticate requests
+        )
+        .with_state(app_state);
 
     let server_addr = "0.0.0.0:3000".to_string();
-    let listener = tokio::net::TcpListener::bind(&server_addr).await.unwrap();
+    let listener = TcpListener::bind(&server_addr).await.unwrap();
     println!("Listening on http://{}", &server_addr); // TODO: fix
 
     axum::serve(listener, app).await.unwrap();
