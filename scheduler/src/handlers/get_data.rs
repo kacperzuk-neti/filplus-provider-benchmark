@@ -1,8 +1,11 @@
 use crate::state::AppState;
 use axum::{
-    debug_handler, extract::{Query, State}, http::StatusCode, response::{IntoResponse, Json as ResponseJson}
+    debug_handler,
+    extract::{Query, State},
+    http::StatusCode,
+    response::{IntoResponse, Json as ResponseJson},
 };
-use rabbitmq::ResultMessage;
+// use rabbitmq::ResultMessage;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tracing::info;
@@ -13,10 +16,11 @@ pub struct GetDataQuery {
     job_id: String,
 }
 
-#[derive(Serialize)]
-pub struct GetDataResponse {
-    result: Option<ResultMessage>,
-}
+// #[derive(Serialize)]
+// pub struct GetDataResponse {
+//     // job_id: String,
+//     // results: Option<Vec<ResultMessage>>,
+// }
 
 #[derive(Serialize)]
 pub struct ErrorResponse {
@@ -55,5 +59,6 @@ pub async fn handle(
 
     info!("Job data found for job_id: {} {:?}", job_id, result);
 
-    (StatusCode::OK, ResponseJson(GetDataResponse { result })).into_response()
+    // (StatusCode::OK, ResponseJson(GetDataResponse { result })).into_response()
+    (StatusCode::OK, ResponseJson(result)).into_response()
 }

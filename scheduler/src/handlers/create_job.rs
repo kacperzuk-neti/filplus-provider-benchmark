@@ -51,7 +51,19 @@ pub async fn handle(
 
     let job_id = Uuid::new_v4();
 
-    let start_time: u64 = now_plus.duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let start_time = match now_plus.duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration,
+        Err(_) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ResponseJson(ErrorResponse {
+                    error: "Failed to calculate start time".to_string(),
+                }),
+            )
+                .into_response();
+        }
+    };
+
     let job_message = Message::WorkerJob {
         job_id,
         payload: JobMessage {
@@ -62,7 +74,7 @@ pub async fn handle(
 
     info!("Publishing job message: {:?}", job_message);
 
-    match state.job_queue.publish(&job_message).await {
+    match state.job_queue.publish(&job_message, &"all").await {
         Ok(_) => info!("Job message published successfully"),
         Err(e) => {
             info!("Failed to publish job message: {:?}", e);

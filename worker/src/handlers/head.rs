@@ -1,10 +1,9 @@
-use rabbitmq::JobMessage;
+use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;
-use std::error::Error;
 use tokio::time::Instant;
 use tracing::{debug, info};
 
-pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send + Sync>> {
+pub async fn process(payload: JobMessage) -> Result<HeadResult, HeadError> {
     info!("Processing HEAD job");
 
     let client = Client::new();
@@ -15,7 +14,11 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
         let start_time = Instant::now(); // Start timing
 
         // Send a HEAD request to the URL
-        let response = client.head(&payload.url).send().await?;
+        let response = client
+            .head(&payload.url)
+            .send()
+            .await
+            .map_err(|e| HeadError(format!("RequestError: {}", e)))?;
 
         // Measure the elapsed time
         let elapsed = start_time.elapsed();
@@ -23,7 +26,11 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
         latencies.push(latency_ms);
 
         // Print the status code to verify the request
-        debug!("Response Status: {}", response.status());
+        debug!(
+            "Response Status: {}, Latency: {}",
+            response.status(),
+            latency_ms
+        );
     }
 
     // Calculate min, max, and average latencies
@@ -38,5 +45,9 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
 
     info!("Finished processing HEAD job");
 
-    Ok("latency result".to_string())
+    Ok(HeadResult {
+        min: min_latency,
+        max: max_latency,
+        avg: avg_latency,
+    })
 }

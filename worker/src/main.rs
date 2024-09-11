@@ -1,16 +1,15 @@
 use dotenv::dotenv;
-use handlers::{job_consumer::JobConsumer, result_sender};
+use handlers::job_consumer::JobConsumer;
 use rabbitmq::*;
-use std::sync::Arc;
-use tokio::sync::mpsc;
-use tracing::{error, info};
+use std::{error::Error, sync::Arc};
+use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 mod handlers;
 
 // TODO: make sure that the worker can and will exit gracefully
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error>> {
     // Load .env
     dotenv().ok();
 
@@ -24,29 +23,36 @@ async fn main() {
 
     info!("Worker started");
 
-    // TODO: i need to make sure that before exit the worker, all the messages are processed
-    let (result_sender, result_receiver) = mpsc::channel::<Message>(100); // TODO: not a string !
-
     let addr = Arc::new(std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
+
+    debug!("RabbitMQ host: {}", addr);
 
     let mut job_queue = QueueHandler::clone(&CONFIG_WORKER_A_JOB);
     match job_queue.setup(&addr).await {
         Ok(_) => info!("Successfully set up job queue"),
-        Err(e) => error!("Failed to set up job queue: {}", e), // TODO: panic ?!
+        Err(e) => panic!("Failed to set up job queue: {}", e),
     }
 
-    // Handle results in a separate task
-    tokio::spawn(result_sender::handle(result_receiver, Arc::clone(&addr)));
-
-    let consumer = JobConsumer::new(result_sender);
-    if let Err(e) = job_queue.subscribe(consumer).await {
-        // TODO: panic ?
-        error!("Failed to start consumer: {}", e);
+    let mut data_queue = QueueHandler::clone(&CONFIG_WORKER_A_RESULT);
+    match data_queue.setup(&addr).await {
+        Ok(_) => info!("Successfully set up data queue"),
+        Err(e) => panic!("Failed to set up data queue: {}", e),
     }
 
-    tokio::signal::ctrl_c().await.unwrap();
-    info!("Shutting down...");
+    let consumer = JobConsumer::new(data_queue.clone());
+    match job_queue.subscribe(consumer).await {
+        Ok(_) => info!("Successfully started job queue consumer"),
+        Err(e) => panic!("Failed to start job queue consumer: {}", e),
+    }
+
+    match tokio::signal::ctrl_c().await {
+        Ok(_) => info!("Received SIGINT signal, Shutting down..."),
+        Err(e) => panic!("Failed to listen for SIGINT signal: {}", e),
+    }
 
     job_queue.close().await.unwrap();
+    data_queue.close().await.unwrap();
     info!("Worker shut down gracefully");
+
+    Ok(())
 }

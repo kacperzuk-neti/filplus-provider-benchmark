@@ -1,35 +1,33 @@
-use rabbitmq::JobMessage;
-use std::error::Error;
+use rabbitmq::{JobMessage, PingError, PingResult};
 use std::net::{IpAddr, ToSocketAddrs};
 use std::process::Command;
 use std::str;
 use tracing::{debug, error, info};
 use url::Url;
 
-struct PingResult {
-    avg_latency: f64,
-    min_latency: f64,
-    max_latency: f64,
-}
-
-pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send + Sync>> {
+pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
     info!("Processing PING job");
 
     // TODO: make proper URL parsing and error handling!
     // Parse the URL and extract the host
-    let url = Url::parse(&payload.url)?;
-    let host = url.host_str().ok_or("Failed to extract host from URL")?;
+    let url = Url::parse(&payload.url).map_err(|e| PingError(format!("UrlParseError: {}", e)))?;
+    let host = url
+        .host_str()
+        .ok_or(PingError("Failed to extract host from URL".to_string()))?;
 
     // Resolve the host to an IP address
     let ip_addresses: Vec<IpAddr> = (host, 0)
-        .to_socket_addrs()?
+        .to_socket_addrs()
+        .map_err(|e| PingError(format!("socket addr: {}", e)))?
         .map(|socket_addr| socket_addr.ip())
         .collect();
 
     if ip_addresses.is_empty() {
         error!("Could not resolve host to IP addresses.");
 
-        return Err("Could not resolve host to IP addresses.".into());
+        return Err(PingError(
+            "Could not resolve host to IP addresses.".to_string(),
+        ));
     }
 
     let ip_address = ip_addresses[0];
@@ -39,13 +37,15 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
         .arg("-c")
         .arg("10")
         .arg(ip_address.to_string())
-        .output()?;
+        .output()
+        .map_err(|e| PingError(format!("PingCommandError: {}", e)))?;
 
     if !output.status.success() {
-        return Err("Ping command failed.".into());
+        return Err(PingError("Ping command failed.".to_string()));
     }
 
-    let stdout = str::from_utf8(&output.stdout)?;
+    let stdout =
+        str::from_utf8(&output.stdout).map_err(|e| PingError(format!("stdout err: {}", e)))?;
     debug!("Ping output:\n{}", stdout);
 
     // Parse the latency statistics from the output
@@ -65,7 +65,9 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
     if latencies.is_empty() {
         error!("Failed to parse latency values from ping output.");
 
-        return Err("Failed to parse latency values from ping output.".into());
+        return Err(PingError(
+            "Failed to parse latency values from ping output.".to_string(),
+        ));
     }
 
     // Calculate the average, min, and max latencies
@@ -84,5 +86,10 @@ pub async fn process(payload: JobMessage) -> Result<String, Box<dyn Error + Send
     debug!("Min: {:.2} ms", min_latency);
     debug!("Max: {:.2} ms", max_latency);
 
-    Ok("ping result".to_string())
+    Ok(PingResult {
+        avg: avg_latency,
+        min: min_latency,
+        max: max_latency,
+        mean_dev: 0.0,
+    })
 }

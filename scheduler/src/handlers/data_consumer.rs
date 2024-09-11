@@ -45,7 +45,10 @@ impl DataConsumer {
 
         {
             let mut results = self.state.results.lock().unwrap();
-            results.insert(job_id, result_message);
+            results
+                .entry(job_id)
+                .or_insert_with(Vec::new)
+                .push(result_message);
         }
 
         Ok(())

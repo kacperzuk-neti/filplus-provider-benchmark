@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 // #[derive(Debug)]
 pub struct AppState {
-    pub results: Mutex<HashMap<Uuid, ResultMessage>>,
+    pub results: Mutex<HashMap<Uuid, Vec<ResultMessage>>>,
     pub job_queue: QueueHandler,
 }
 
