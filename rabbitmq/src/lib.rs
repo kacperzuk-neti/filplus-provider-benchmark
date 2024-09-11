@@ -245,7 +245,7 @@ impl QueueHandler {
 }
 
 // RabbitMQ configurations for various services and use cases
-pub const CONFIG_WORKER_A_JOB: QueueHandler = QueueHandler {
+pub const CONFIG_QUEUE_JOB: QueueHandler = QueueHandler {
     exchange_name: "job_exchange",
     queue_name: None,
     routing_key: None,
@@ -255,7 +255,7 @@ pub const CONFIG_WORKER_A_JOB: QueueHandler = QueueHandler {
     channel: None,
 };
 
-pub const CONFIG_WORKER_A_RESULT: QueueHandler = QueueHandler {
+pub const CONFIG_QUEUE_RESULT: QueueHandler = QueueHandler {
     exchange_name: "result_exchange",
     queue_name: Some("result_queue"),
     routing_key: Some("worker_a_result"),

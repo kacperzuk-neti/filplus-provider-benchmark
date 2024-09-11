@@ -27,13 +27,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     debug!("RabbitMQ host: {}", addr);
 
-    let mut job_queue = QueueHandler::clone(&CONFIG_WORKER_A_JOB);
+    let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
     match job_queue.setup(&addr).await {
         Ok(_) => info!("Successfully set up job queue"),
         Err(e) => panic!("Failed to set up job queue: {}", e),
     }
 
-    let mut data_queue = QueueHandler::clone(&CONFIG_WORKER_A_RESULT);
+    let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
     match data_queue.setup(&addr).await {
         Ok(_) => info!("Successfully set up data queue"),
         Err(e) => panic!("Failed to set up data queue: {}", e),
