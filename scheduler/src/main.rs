@@ -65,8 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
-        .await
-        .unwrap();
+        .await?;
 
     // Close the connection gracefully
     // job_queue.close().await.unwrap(); // TODO: fix this !

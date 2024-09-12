@@ -47,8 +47,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // TODO: do not accept new jobs and wait for execution of existing ones
     // TODO: maybe lookup tokio::sync::Notify for this
 
-    job_queue.close().await.unwrap();
-    data_queue.close().await.unwrap();
+    job_queue.close().await?;
+    data_queue.close().await?;
     info!("Worker shut down gracefully");
 
     Ok(())

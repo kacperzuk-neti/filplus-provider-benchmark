@@ -45,7 +45,19 @@ pub async fn handle(
 
     info!("Getting data for job_id: {}", job_id);
 
-    let results = state.results.lock().unwrap();
+    let results = match state.results.lock() {
+        Ok(results) => results,
+        Err(e) => {
+            let error_response = ErrorResponse {
+                error: format!("Failed to acquire lock: {:?}", e),
+            };
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ResponseJson(error_response),
+            )
+                .into_response();
+        }
+    };
     let result = results.get(&job_id).cloned();
 
     if result.is_none() {
@@ -59,6 +71,5 @@ pub async fn handle(
 
     info!("Job data found for job_id: {} {:?}", job_id, result);
 
-    // (StatusCode::OK, ResponseJson(GetDataResponse { result })).into_response()
     (StatusCode::OK, ResponseJson(result)).into_response()
 }
