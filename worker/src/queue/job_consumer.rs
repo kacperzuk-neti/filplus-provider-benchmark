@@ -1,13 +1,15 @@
+use std::error::Error;
+
 use crate::handlers::*;
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
     BasicProperties, Deliver,
 };
+use anyhow::Result;
 use async_trait::async_trait;
 use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage};
 use serde_json;
-use std::error::Error;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -74,6 +76,8 @@ impl AsyncConsumer for JobConsumer {
         let content_str = String::from_utf8(content).unwrap();
         debug!("Received message: {}", content_str);
 
+        // TODO: simplify this
+
         if let Some((job_id, job_message)) = self.parse_message(&content_str).await {
             // React to the received data
             let result = self.process_message(job_id, job_message).await.unwrap();
@@ -81,7 +85,7 @@ impl AsyncConsumer for JobConsumer {
             // Publish the result
             if let Err(e) = self
                 .data_queue
-                .publish(&result_message, &self.data_queue.routing_key.unwrap())
+                .publish(&result_message, self.data_queue.routing_key.unwrap())
                 .await
             {
                 no_ack = true;

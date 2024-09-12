@@ -2,15 +2,14 @@ use std::{error::Error, sync::Arc};
 
 use anyhow::Result;
 use dotenv::dotenv;
-use handlers::job_consumer::JobConsumer;
+use queue::job_consumer::JobConsumer;
 use rabbitmq::*;
-use std::{error::Error, sync::Arc};
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
 mod handlers;
+mod queue;
 
-// TODO: make sure that the worker can and will exit gracefully
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Load .env
