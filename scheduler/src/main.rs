@@ -3,17 +3,17 @@ use std::{error::Error, sync::Arc};
 use anyhow::Result;
 use axum::Router;
 use dotenv::dotenv;
-use handlers::data_consumer::DataConsumer;
+use queue::data_consumer::DataConsumer;
 use rabbitmq::*;
 use state::AppState;
-use std::{error::Error, sync::Arc};
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info};
 use tracing_subscriber::EnvFilter;
 
-mod handlers;
+mod api;
+mod queue;
 mod routes;
 mod state;
 

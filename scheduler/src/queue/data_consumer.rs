@@ -1,14 +1,16 @@
+use std::error::Error;
+use std::sync::Arc;
+
 use crate::state::AppState;
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
     BasicProperties, Deliver,
 };
+use anyhow::Result;
 use async_trait::async_trait;
 use rabbitmq::{Message, ResultMessage};
 use serde_json;
-use std::error::Error;
-use std::sync::Arc;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -47,7 +49,8 @@ impl DataConsumer {
             let mut results = self.state.results.lock().unwrap();
             results
                 .entry(job_id)
-                .or_insert_with(Vec::new)
+                // .or_insert_with(Vec::new)
+                .or_default() // TODO: test this, a hint from clippy
                 .push(result_message);
         }
 
@@ -68,6 +71,8 @@ impl AsyncConsumer for DataConsumer {
 
         let content_str = String::from_utf8(content).unwrap();
         debug!("Received message: {}", content_str);
+
+        // TODO: simplyfy this !
 
         if let Some((job_id, result_message)) = self.parse_message(&content_str).await {
             match self.process_message(job_id, result_message).await {

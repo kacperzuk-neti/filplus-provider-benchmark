@@ -74,7 +74,7 @@ pub async fn handle(
 
     info!("Publishing job message: {:?}", job_message);
 
-    match state.job_queue.publish(&job_message, &"all").await {
+    match state.job_queue.publish(&job_message, "all").await {
         Ok(_) => info!("Job message published successfully"),
         Err(e) => {
             info!("Failed to publish job message: {:?}", e);
