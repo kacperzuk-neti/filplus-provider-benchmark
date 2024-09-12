@@ -1,5 +1,6 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use anyhow::Result;
 use rabbitmq::{AccumulatingBytes, DownloadError, DownloadResult, IntervalBytes, JobMessage};
 use reqwest::{
     header::{ACCEPT, RANGE, USER_AGENT},

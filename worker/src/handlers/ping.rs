@@ -1,7 +1,9 @@
-use rabbitmq::{JobMessage, PingError, PingResult};
 use std::net::{IpAddr, ToSocketAddrs};
 use std::process::Command;
 use std::str;
+
+use anyhow::Result;
+use rabbitmq::{JobMessage, PingError, PingResult};
 use tracing::{debug, error, info};
 use url::Url;
 

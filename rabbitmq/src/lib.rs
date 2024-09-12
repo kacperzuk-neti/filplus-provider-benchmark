@@ -151,7 +151,7 @@ impl QueueHandler {
             )
             .await?;
 
-        if None == self.queue_name || None == self.routing_key {
+        if self.queue_name.is_none() || self.routing_key.is_none() {
             let worker_name: &'static str = Box::leak(
                 std::env::var("WORKER_NAME")
                     .unwrap_or_else(|_| "default_worker".to_string())
@@ -177,7 +177,7 @@ impl QueueHandler {
             ))
             .await?;
 
-        if (self.exchange_type == "topic") {
+        if self.exchange_type == "topic" {
             // Bind the queue to the exchange with each topic
             for topic in self.topics {
                 channel
@@ -250,7 +250,7 @@ pub const CONFIG_QUEUE_JOB: QueueHandler = QueueHandler {
     queue_name: None,
     routing_key: None,
     topics: &["all"],
-    exchange_type: &"topic",
+    exchange_type: "topic",
     connection: None,
     channel: None,
 };
@@ -260,7 +260,7 @@ pub const CONFIG_QUEUE_RESULT: QueueHandler = QueueHandler {
     queue_name: Some("result_queue"),
     routing_key: Some("worker_a_result"),
     topics: &[],
-    exchange_type: &"direct",
+    exchange_type: "direct",
     connection: None,
     channel: None,
 };

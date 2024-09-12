@@ -1,3 +1,6 @@
+use std::{error::Error, sync::Arc};
+
+use anyhow::Result;
 use axum::Router;
 use dotenv::dotenv;
 use handlers::data_consumer::DataConsumer;
@@ -34,24 +37,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     debug!("RabbitMQ host: {}", addr);
 
     let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
-    match job_queue.setup(&addr).await {
-        Ok(_) => info!("Successfully set up job queue"),
-        Err(e) => panic!("Failed to set up job queue: {}", e),
-    }
+    job_queue.setup(&addr).await?;
+    info!("Successfully set up job queue");
 
     // Initialize in memory data store
     let app_state = Arc::new(AppState::new(job_queue));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
-    match data_queue.setup(&addr).await {
-        Ok(_) => info!("Successfully set up data queue"),
-        Err(e) => panic!("Failed to set up data queue: {}", e),
-    }
+    data_queue.setup(&addr).await?;
+    info!("Successfully set up data queue");
+
     let consumer = DataConsumer::new(app_state.clone());
-    match data_queue.subscribe(consumer).await {
-        Ok(_) => info!("Successfully started data queue consumer"),
-        Err(e) => panic!("Failed to start data queue consumer: {}", e),
-    }
+    data_queue.subscribe(consumer).await?;
+    info!("Successfully started data queue consumer");
 
     let app = Router::new()
         .merge(routes::create_routes())
@@ -62,7 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_state(app_state.clone());
 
     let server_addr = "0.0.0.0:3000".to_string();
-    let listener = TcpListener::bind(&server_addr).await.unwrap();
+    let listener = TcpListener::bind(&server_addr).await?;
     info!("Listening on http://{}", &server_addr);
 
     axum::serve(listener, app)

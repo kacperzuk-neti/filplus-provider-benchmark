@@ -6,6 +6,7 @@ authors = ["Michał Mach <michal.mach@neti-soft.com>"]
 
 [dependencies]
 amqprs = "1.7.0"
+anyhow = "1.0.87"
 async-trait = "0.1.82"
 dotenv = "0.15.0"
 rabbitmq = { version = "0.1.0", path = "../rabbitmq" }

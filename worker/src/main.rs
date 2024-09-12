@@ -1,3 +1,6 @@
+use std::{error::Error, sync::Arc};
+
+use anyhow::Result;
 use dotenv::dotenv;
 use handlers::job_consumer::JobConsumer;
 use rabbitmq::*;
@@ -28,27 +31,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
     debug!("RabbitMQ host: {}", addr);
 
     let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
-    match job_queue.setup(&addr).await {
-        Ok(_) => info!("Successfully set up job queue"),
-        Err(e) => panic!("Failed to set up job queue: {}", e),
-    }
+    job_queue.setup(&addr).await?;
+    info!("Successfully set up job queue");
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
-    match data_queue.setup(&addr).await {
-        Ok(_) => info!("Successfully set up data queue"),
-        Err(e) => panic!("Failed to set up data queue: {}", e),
-    }
+    data_queue.setup(&addr).await?;
+    info!("Successfully set up data queue");
 
     let consumer = JobConsumer::new(data_queue.clone());
-    match job_queue.subscribe(consumer).await {
-        Ok(_) => info!("Successfully started job queue consumer"),
-        Err(e) => panic!("Failed to start job queue consumer: {}", e),
-    }
+    job_queue.subscribe(consumer).await?;
+    info!("Successfully started job queue consumer");
 
-    match tokio::signal::ctrl_c().await {
-        Ok(_) => info!("Received SIGINT signal, Shutting down..."),
-        Err(e) => panic!("Failed to listen for SIGINT signal: {}", e),
-    }
+    tokio::signal::ctrl_c().await?;
+    info!("Received SIGINT signal, Shutting down...");
+
+    // TODO: do not accept new jobs and wait for execution of existing ones
+    // TODO: maybe lookup tokio::sync::Notify for this
 
     job_queue.close().await.unwrap();
     data_queue.close().await.unwrap();

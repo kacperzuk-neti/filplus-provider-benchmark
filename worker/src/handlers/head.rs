@@ -1,3 +1,4 @@
+use anyhow::Result;
 use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;
 use tokio::time::Instant;
