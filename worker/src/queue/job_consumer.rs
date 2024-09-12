@@ -1,12 +1,10 @@
-use std::error::Error;
-
 use crate::handlers::*;
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
     BasicProperties, Deliver,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage};
 use serde_json;
@@ -22,16 +20,15 @@ impl JobConsumer {
         Self { data_queue }
     }
 
-    async fn parse_message(&self, content_str: &str) -> Option<(Uuid, JobMessage)> {
+    async fn parse_message(&self, content_str: &str) -> Result<(Uuid, JobMessage)> {
         match serde_json::from_str::<Message>(content_str) {
-            Ok(Message::WorkerJob { job_id, payload }) => Some((job_id, payload)),
+            Ok(Message::WorkerJob { job_id, payload }) => Ok((job_id, payload)),
             Ok(Message::WorkerResult { .. }) => {
-                error!("Received unexpected WorkerResult message");
-                None
+                Err(anyhow!("Received unexpected WorkerResult message"))
             }
             Err(e) => {
                 error!("Error parsing message: {:?}", e);
-                None
+                Err(e.into())
             }
         }
     }
@@ -40,7 +37,7 @@ impl JobConsumer {
         &self,
         job_id: Uuid,
         job_message: JobMessage,
-    ) -> Result<ResultMessage, Box<dyn Error>> {
+    ) -> Result<ResultMessage> {
         info!("Handling message: {:?} {:?}", job_id, job_message);
 
         let (download_result, ping_result, latency_result) = tokio::join!(
@@ -60,6 +57,28 @@ impl JobConsumer {
             latency_result,
         ))
     }
+
+    pub async fn run(&self, content: Vec<u8>) -> Result<()> {
+        let content_str = String::from_utf8(content).map_err(|e| Box::new(e))?;
+
+        // Parse the received message
+        let (job_id, job_message) = self.parse_message(&content_str).await?;
+
+        // React to the received data
+        let result = self.process_message(job_id, job_message).await?;
+        let result_message = Message::WorkerResult { job_id, result };
+
+        // Publish the result
+        if let Err(e) = self
+            .data_queue
+            .publish(&result_message, self.data_queue.routing_key.unwrap())
+            .await
+        {
+            error!("Error publishing result: {:?}", e);
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -71,36 +90,18 @@ impl AsyncConsumer for JobConsumer {
         _basic_properties: BasicProperties,
         content: Vec<u8>,
     ) {
-        let mut no_ack = false;
-
-        let content_str = String::from_utf8(content).unwrap();
-        debug!("Received message: {}", content_str);
-
-        // TODO: simplify this
-
-        if let Some((job_id, job_message)) = self.parse_message(&content_str).await {
-            // React to the received data
-            let result = self.process_message(job_id, job_message).await.unwrap();
-            let result_message = Message::WorkerResult { job_id, result };
-            // Publish the result
-            if let Err(e) = self
-                .data_queue
-                .publish(&result_message, self.data_queue.routing_key.unwrap())
-                .await
-            {
-                no_ack = true;
-                error!("Error publishing result: {:?}", e);
+        match self.run(content).await {
+            Ok(_) => {
+                info!("Message processed successfully");
             }
-        } else {
-            // no_ack = true; // TODO: we probably want to take this out, maybe move to different queue
-            error!("Error parsing message");
+            Err(e) => {
+                error!("Error processing message: {:?}", e);
+            }
         }
 
-        // if !self.no_ack {
-        if !no_ack {
-            let args = BasicAckArguments::new(deliver.delivery_tag(), false);
-            channel.basic_ack(args).await.unwrap();
-            debug!("Acked message");
-        }
+        // Ack the message in any case. The result will be relevant only when its immediately processed.
+        let args = BasicAckArguments::new(deliver.delivery_tag(), false);
+        channel.basic_ack(args).await.unwrap();
+        debug!("Acked message");
     }
 }

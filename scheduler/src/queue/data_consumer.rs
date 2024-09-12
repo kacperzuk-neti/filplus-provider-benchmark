@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::sync::Arc;
 
 use crate::state::AppState;
@@ -7,7 +6,7 @@ use amqprs::{
     consumer::AsyncConsumer,
     BasicProperties, Deliver,
 };
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use rabbitmq::{Message, ResultMessage};
 use serde_json;
@@ -23,36 +22,41 @@ impl DataConsumer {
         Self { state }
     }
 
-    async fn parse_message(&self, content_str: &str) -> Option<(Uuid, ResultMessage)> {
+    async fn parse_message(&self, content_str: &str) -> Result<(Uuid, ResultMessage)> {
         match serde_json::from_str::<Message>(content_str) {
-            Ok(Message::WorkerResult { job_id, result }) => Some((job_id, result)),
+            Ok(Message::WorkerResult { job_id, result }) => Ok((job_id, result)),
             Ok(Message::WorkerJob { .. }) => {
-                error!("Received unexpected WorkerResult message");
-                None
+                Err(anyhow!("Received unexpected WorkerResult message"))
             }
-
             Err(e) => {
                 error!("Error parsing message: {:?}", e);
-                None
+                Err(e.into())
             }
         }
     }
 
-    async fn process_message(
-        &self,
-        job_id: Uuid,
-        result_message: ResultMessage,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn process_message(&self, job_id: Uuid, result_message: ResultMessage) -> Result<()> {
         info!("Handling message: {:?} {:?}", job_id, result_message);
 
-        {
-            let mut results = self.state.results.lock().unwrap();
-            results
-                .entry(job_id)
-                // .or_insert_with(Vec::new)
-                .or_default() // TODO: test this, a hint from clippy
-                .push(result_message);
-        }
+        let mut results = self
+            .state
+            .results
+            .lock()
+            .map_err(|e| anyhow!("Failed to aquire lock {:?}", e))?;
+
+        results.entry(job_id).or_default().push(result_message);
+
+        Ok(())
+    }
+
+    async fn run(&self, content: Vec<u8>) -> Result<()> {
+        let content_str = String::from_utf8(content)?;
+
+        debug!("Received message: {}", content_str);
+
+        let (job_id, result_message) = self.parse_message(&content_str).await?;
+
+        self.process_message(job_id, result_message).await?;
 
         Ok(())
     }
@@ -67,31 +71,17 @@ impl AsyncConsumer for DataConsumer {
         _basic_properties: BasicProperties,
         content: Vec<u8>,
     ) {
-        let mut no_ack = false;
-
-        let content_str = String::from_utf8(content).unwrap();
-        debug!("Received message: {}", content_str);
-
-        // TODO: simplyfy this !
-
-        if let Some((job_id, result_message)) = self.parse_message(&content_str).await {
-            match self.process_message(job_id, result_message).await {
-                Ok(_) => {
-                    info!("Processed message successfully");
-                }
-                Err(e) => {
-                    no_ack = true;
-                    error!("Error processing message: {:?}", e);
-                }
+        match self.run(content).await {
+            Ok(_) => {
+                info!("Processed message successfully");
+                // Ack message only if processed successfully
+                let args = BasicAckArguments::new(deliver.delivery_tag(), false);
+                channel.basic_ack(args).await.unwrap();
+                debug!("Acked message");
             }
-        } else {
-            error!("Error parsing message");
-        }
-
-        if !no_ack {
-            let args = BasicAckArguments::new(deliver.delivery_tag(), false);
-            channel.basic_ack(args).await.unwrap();
-            debug!("Acked message");
+            Err(e) => {
+                error!("Error processing message: {:?}", e);
+            }
         }
     }
 }
