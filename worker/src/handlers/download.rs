@@ -32,6 +32,24 @@ fn calculate_next_even_second(current: SystemTime) -> SystemTime {
     current + Duration::from_millis(remaining_millis as u64)
 }
 
+/// Sleep until the start time of the job
+fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
+    let now_timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?;
+
+    if payload.start_timestamp > now_timestamp {
+        let sleep_duration = payload.start_timestamp - now_timestamp;
+        debug!("Sleeping for {:?}", sleep_duration);
+
+        sleep(sleep_duration);
+
+        debug!("Woke up after sleeping");
+    } else {
+        error!("Start time is in the past, skipping sleep");
+    }
+
+    Ok(())
+}
+
 /// Benchmark the download speed of the given URL
 pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadError> {
     let range_start = 0;
