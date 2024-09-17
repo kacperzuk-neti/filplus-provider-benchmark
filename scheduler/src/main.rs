@@ -5,6 +5,7 @@ use axum::Router;
 use dotenv::dotenv;
 use queue::data_consumer::DataConsumer;
 use rabbitmq::*;
+use sqlx::{migrate::Migrator, PgPool};
 use state::AppState;
 use tokio::net::TcpListener;
 use tower::ServiceBuilder;
@@ -16,6 +17,8 @@ mod api;
 mod queue;
 mod routes;
 mod state;
+
+static MIGRATOR: Migrator = sqlx::migrate!("./src/migrations");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -30,7 +33,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    info!("Scheduler started");
+    // Initialize database connection pool & run migrations
+    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    debug!("PostgreSQL url: {}", db_url);
+    let pool = PgPool::connect(&db_url).await?;
+    MIGRATOR.run(&pool).await?;
 
     let addr = Arc::new(std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
 
