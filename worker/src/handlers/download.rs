@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    thread::sleep,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use anyhow::Result;
 use rabbitmq::{AccumulatingBytes, DownloadError, DownloadResult, IntervalBytes, JobMessage};
@@ -61,6 +64,11 @@ pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadErro
     let mut bytes: usize = 0;
     let mut total_bytes: usize = 0;
     let mut second_by_second_logs: Vec<(SystemTime, IntervalBytes, AccumulatingBytes)> = Vec::new();
+
+    // Delay the download execution to sync the time on every worker
+    wait_for_start_time(&payload).map_err(|e| DownloadError {
+        error: format!("SystemTimeError: {}", e),
+    })?;
 
     let mut response = request.send().await.map_err(|e| DownloadError {
         error: format!("RequestError: {}", e),
