@@ -12,24 +12,28 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
 
     // TODO: make proper URL parsing and error handling!
     // Parse the URL and extract the host
-    let url = Url::parse(&payload.url).map_err(|e| PingError(format!("UrlParseError: {}", e)))?;
-    let host = url
-        .host_str()
-        .ok_or(PingError("Failed to extract host from URL".to_string()))?;
+    let url = Url::parse(&payload.url).map_err(|e| PingError {
+        error: format!("UrlParseError: {}", e),
+    })?;
+    let host = url.host_str().ok_or(PingError {
+        error: "Failed to extract host from URL".to_string(),
+    })?;
 
     // Resolve the host to an IP address
     let ip_addresses: Vec<IpAddr> = (host, 0)
         .to_socket_addrs()
-        .map_err(|e| PingError(format!("socket addr: {}", e)))?
+        .map_err(|e| PingError {
+            error: format!("socket addr: {}", e),
+        })?
         .map(|socket_addr| socket_addr.ip())
         .collect();
 
     if ip_addresses.is_empty() {
         error!("Could not resolve host to IP addresses.");
 
-        return Err(PingError(
-            "Could not resolve host to IP addresses.".to_string(),
-        ));
+        return Err(PingError {
+            error: "Could not resolve host to IP addresses.".to_string(),
+        });
     }
 
     let ip_address = ip_addresses[0];
@@ -40,14 +44,19 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
         .arg("10")
         .arg(ip_address.to_string())
         .output()
-        .map_err(|e| PingError(format!("PingCommandError: {}", e)))?;
+        .map_err(|e| PingError {
+            error: format!("PingCommandError: {}", e),
+        })?;
 
     if !output.status.success() {
-        return Err(PingError("Ping command failed.".to_string()));
+        return Err(PingError {
+            error: "Ping command failed.".to_string(),
+        });
     }
 
-    let stdout =
-        str::from_utf8(&output.stdout).map_err(|e| PingError(format!("stdout err: {}", e)))?;
+    let stdout = str::from_utf8(&output.stdout).map_err(|e| PingError {
+        error: format!("stdout err: {}", e),
+    })?;
     debug!("Ping output:\n{}", stdout);
 
     // Parse the latency statistics from the output
@@ -67,9 +76,9 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
     if latencies.is_empty() {
         error!("Failed to parse latency values from ping output.");
 
-        return Err(PingError(
-            "Failed to parse latency values from ping output.".to_string(),
-        ));
+        return Err(PingError {
+            error: "Failed to parse latency values from ping output.".to_string(),
+        });
     }
 
     // Calculate the average, min, and max latencies

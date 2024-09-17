@@ -1,10 +1,11 @@
 use std::{error::Error, sync::Arc};
 
-use anyhow::Result;
 use axum::Router;
+use color_eyre::Result;
 use dotenv::dotenv;
 use queue::data_consumer::DataConsumer;
 use rabbitmq::*;
+use repository::data_repository::DataRepository;
 use sqlx::{migrate::Migrator, PgPool};
 use state::AppState;
 use tokio::net::TcpListener;
@@ -15,6 +16,7 @@ use tracing_subscriber::EnvFilter;
 
 mod api;
 mod queue;
+mod repository;
 mod routes;
 mod state;
 
@@ -22,6 +24,11 @@ static MIGRATOR: Migrator = sqlx::migrate!("./src/migrations");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    info!("Scheduler is starting...");
+
+    // Initialize color_eyre panic and error handlers
+    color_eyre::install()?;
+
     // Load .env
     dotenv().ok();
 
@@ -39,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
-    let addr = Arc::new(std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
+    let addr = Arc::new(std::env::var("RABBITMQ_HOST").expect("RABBITMQ_HOST must be set"));
 
     debug!("RabbitMQ host: {}", addr);
 
@@ -47,8 +54,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     job_queue.setup(&addr).await?;
     info!("Successfully set up job queue");
 
-    // Initialize in memory data store
-    let app_state = Arc::new(AppState::new(job_queue));
+    // Initialize data repository
+    let data_repo = Arc::new(DataRepository::new(pool.clone()));
+
+    // Initialize app state
+    let app_state = Arc::new(AppState::new(job_queue, data_repo));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
     data_queue.setup(&addr).await?;
@@ -69,6 +79,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let server_addr = "0.0.0.0:3000".to_string();
     let listener = TcpListener::bind(&server_addr).await?;
     info!("Listening on http://{}", &server_addr);
+
+    info!("Scheduler started successfully, waiting for requests...");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())

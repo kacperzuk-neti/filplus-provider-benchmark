@@ -1,19 +1,18 @@
-use rabbitmq::{QueueHandler, ResultMessage};
-use std::collections::HashMap;
-use std::sync::Mutex;
-use uuid::Uuid;
+use std::sync::Arc;
 
-// #[derive(Debug)]
+use crate::repository::data_repository::DataRepository;
+use rabbitmq::QueueHandler;
+
 pub struct AppState {
-    pub results: Mutex<HashMap<Uuid, Vec<ResultMessage>>>,
     pub job_queue: QueueHandler,
+    pub data_repo: Arc<DataRepository>,
 }
 
 impl AppState {
-    pub fn new(job_queue: QueueHandler) -> Self {
+    pub fn new(job_queue: QueueHandler, data_repo: Arc<DataRepository>) -> Self {
         AppState {
-            results: Mutex::new(HashMap::new()),
             job_queue,
+            data_repo,
         }
     }
 }

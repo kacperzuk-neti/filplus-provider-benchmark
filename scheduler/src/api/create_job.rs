@@ -1,8 +1,6 @@
 use axum::{
     debug_handler,
     extract::{Json, State},
-    http::StatusCode,
-    response::{IntoResponse, Json as ResponseJson},
 };
 use rabbitmq::{JobMessage, Message};
 use serde::{Deserialize, Serialize};
@@ -12,6 +10,7 @@ use tracing::{debug, info};
 use url::Url;
 use uuid::Uuid;
 
+use crate::api::api_response::*;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -24,70 +23,52 @@ pub struct JobResponse {
     pub job_id: Uuid,
 }
 
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    error: String,
-}
-
+/// POST /job
+/// Create a new job to be processed by the worker
 #[debug_handler]
 pub async fn handle(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<JobInput>,
-) -> impl IntoResponse {
-    let url = Url::parse(&payload.url);
-
-    // URL Validation
-    if url.is_err() {
-        let error_response = ErrorResponse {
-            error: "Invalid URL provided".to_string(),
-        };
-        return (StatusCode::BAD_REQUEST, ResponseJson(error_response)).into_response();
-    }
-
-    let now = SystemTime::now();
-    debug!("Current timestamp: {:?}", now);
-    let now_plus = now + Duration::new(5, 0); // TODO: make it a config ??
-    debug!("New timestamp (after 5 seconds): {:?}", now_plus);
+) -> Result<ApiResponse<JobResponse>, ApiResponse<()>> {
+    let url = validate_url(&payload)?;
 
     let job_id = Uuid::new_v4();
+    let now_plus = SystemTime::now() + Duration::new(5, 0);
+    let start_timestamp = now_plus
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| internal_server_error("Failed to calculate start time"))?;
 
-    let start_time = match now_plus.duration_since(UNIX_EPOCH) {
-        Ok(duration) => duration,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ResponseJson(ErrorResponse {
-                    error: "Failed to calculate start time".to_string(),
-                }),
-            )
-                .into_response();
-        }
-    };
+    debug!(
+        "Job ID: {}, URL: {}, Start Timestamp: {:?}",
+        job_id, url, start_timestamp
+    );
 
     let job_message = Message::WorkerJob {
         job_id,
         payload: JobMessage {
-            url: payload.url,
-            start_time,
+            url: url.to_string(),
+            start_timestamp,
         },
     };
 
     info!("Publishing job message: {:?}", job_message);
 
-    match state.job_queue.publish(&job_message, "all").await {
-        Ok(_) => info!("Job message published successfully"),
-        Err(e) => {
-            info!("Failed to publish job message: {:?}", e);
-            let error_response = ErrorResponse {
-                error: "Failed to publish job message".to_string(),
-            };
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ResponseJson(error_response),
-            )
-                .into_response();
-        }
-    }
+    state
+        .job_queue
+        .publish(&job_message, "all")
+        .await
+        .map_err(|_| internal_server_error("Failed to publish job message"))?;
 
-    (StatusCode::OK, ResponseJson(JobResponse { job_id })).into_response()
+    info!("Job message published successfully");
+
+    Ok(ok_response(JobResponse { job_id }))
+}
+
+/// Validate url and its scheme
+fn validate_url(payload: &JobInput) -> Result<Url, ApiResponse<()>> {
+    let url = Url::parse(&payload.url).map_err(|_| bad_request("Invalid URL provided"))?;
+    match url.scheme() {
+        "http" | "https" => Ok(url),
+        _ => Err(bad_request("URL scheme must be http or https")),
+    }
 }

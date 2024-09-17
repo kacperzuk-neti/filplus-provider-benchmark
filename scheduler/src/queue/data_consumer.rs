@@ -38,13 +38,10 @@ impl DataConsumer {
     async fn process_message(&self, job_id: Uuid, result_message: ResultMessage) -> Result<()> {
         info!("Handling message: {:?} {:?}", job_id, result_message);
 
-        let mut results = self
-            .state
-            .results
-            .lock()
-            .map_err(|e| anyhow!("Failed to aquire lock {:?}", e))?;
-
-        results.entry(job_id).or_default().push(result_message);
+        self.state
+            .data_repo
+            .save_data(job_id, result_message)
+            .await?;
 
         Ok(())
     }

@@ -19,7 +19,9 @@ pub async fn process(payload: JobMessage) -> Result<HeadResult, HeadError> {
             .head(&payload.url)
             .send()
             .await
-            .map_err(|e| HeadError(format!("RequestError: {}", e)))?;
+            .map_err(|e| HeadError {
+                error: format!("RequestError: {}", e),
+            })?;
 
         // Measure the elapsed time
         let elapsed = start_time.elapsed();

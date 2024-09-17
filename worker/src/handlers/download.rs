@@ -6,7 +6,7 @@ use reqwest::{
     header::{ACCEPT, RANGE, USER_AGENT},
     Client,
 };
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 /// Prepare the HTTP request
 fn prepare_request(url: &str, range_start: usize, range_end: usize) -> reqwest::RequestBuilder {
@@ -62,16 +62,14 @@ pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadErro
     let mut total_bytes: usize = 0;
     let mut second_by_second_logs: Vec<(SystemTime, IntervalBytes, AccumulatingBytes)> = Vec::new();
 
-    let mut response = request
-        .send()
-        .await
-        .map_err(|e| DownloadError(format!("RequestError: {}", e)))?;
+    let mut response = request.send().await.map_err(|e| DownloadError {
+        error: format!("RequestError: {}", e),
+    })?;
 
     if !response.status().is_success() {
-        return Err(DownloadError(format!(
-            "RequestFailed: {}",
-            response.status()
-        )));
+        return Err(DownloadError {
+            error: format!("RequestFailed: {}", response.status()),
+        });
     }
 
     let time_to_first_byte = start_time.elapsed().unwrap().as_secs_f64() * 1000.0;
@@ -79,11 +77,9 @@ pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadErro
 
     let mut next_log_time = calculate_next_even_second(start_time);
 
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|e| DownloadError(format!("ChunkError: {}", e)))?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(|e| DownloadError {
+        error: format!("ChunkError: {}", e),
+    })? {
         let chunk_size = chunk.len();
         bytes += chunk_size;
         total_bytes += chunk_size;
