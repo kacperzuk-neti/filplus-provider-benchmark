@@ -1,3 +1,5 @@
+use std::{collections::HashSet, env};
+
 use amqprs::{
     channel::{
         BasicConsumeArguments, BasicPublishArguments, Channel, ExchangeDeclareArguments,
@@ -31,7 +33,6 @@ pub struct QueueHandler {
     pub exchange_name: &'static str,
     pub queue_name: Option<&'static str>,
     pub routing_key: Option<&'static str>,
-    topics: &'static [&'static str],
     exchange_type: &'static str,
     connection: Option<Connection>,
     channel: Option<Channel>,
@@ -74,6 +75,14 @@ impl QueueHandler {
             self.set_routing_key(worker_name);
         }
 
+        let worker_topics: Vec<String> = env::var("WORKER_TOPICS")
+            .unwrap_or_else(|_| "all".to_string())
+            .split(',')
+            .map(|s| s.to_string())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
         // Declare queue
         channel
             .queue_declare(QueueDeclareArguments::durable_client_named(
@@ -92,12 +101,12 @@ impl QueueHandler {
 
         if self.exchange_type == "topic" {
             // Bind the queue to the exchange with each topic
-            for topic in self.topics {
+            for topic in worker_topics {
                 channel
                     .queue_bind(QueueBindArguments::new(
                         self.queue_name.unwrap(),
                         self.exchange_name,
-                        topic,
+                        &topic,
                     ))
                     .await?;
             }
@@ -162,7 +171,6 @@ pub const CONFIG_QUEUE_JOB: QueueHandler = QueueHandler {
     exchange_name: "job_exchange",
     queue_name: None,
     routing_key: None,
-    topics: &["all"],
     exchange_type: "topic",
     connection: None,
     channel: None,
@@ -172,7 +180,6 @@ pub const CONFIG_QUEUE_RESULT: QueueHandler = QueueHandler {
     exchange_name: "result_exchange",
     queue_name: Some("result_queue"),
     routing_key: Some("worker_a_result"),
-    topics: &[],
     exchange_type: "direct",
     connection: None,
     channel: None,
