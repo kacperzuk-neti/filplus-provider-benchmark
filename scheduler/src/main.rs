@@ -1,8 +1,7 @@
-use std::{error::Error, sync::Arc};
+use std::{env, error::Error, sync::Arc};
 
 use axum::Router;
 use color_eyre::Result;
-use dotenv::dotenv;
 use queue::data_consumer::DataConsumer;
 use rabbitmq::*;
 use repository::data_repository::DataRepository;
@@ -30,10 +29,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
 
     // Load .env
-    dotenv().ok();
+    dotenvy::dotenv()?;
 
     // Initialize logging
-    let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level)),
@@ -41,12 +40,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Initialize database connection pool & run migrations
-    let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     debug!("PostgreSQL url: {}", db_url);
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
-    let addr = Arc::new(std::env::var("RABBITMQ_HOST").expect("RABBITMQ_HOST must be set"));
+    let addr = Arc::new(env::var("RABBITMQ_HOST").expect("RABBITMQ_HOST must be set"));
 
     debug!("RabbitMQ host: {}", addr);
 

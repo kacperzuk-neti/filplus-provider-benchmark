@@ -1,7 +1,6 @@
-use std::{error::Error, sync::Arc};
+use std::{env, error::Error, sync::Arc};
 
 use anyhow::Result;
-use dotenv::dotenv;
 use queue::job_consumer::JobConsumer;
 use rabbitmq::*;
 use tracing::{debug, info};
@@ -13,10 +12,10 @@ mod queue;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Load .env
-    dotenv().ok();
+    dotenvy::dotenv()?;
 
     // Initialize logging
-    let log_level = std::env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level)),
@@ -25,7 +24,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Worker started");
 
-    let addr = Arc::new(std::env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
+    let addr = Arc::new(env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
 
     debug!("RabbitMQ host: {}", addr);
 
