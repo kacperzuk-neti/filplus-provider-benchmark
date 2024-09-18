@@ -32,11 +32,13 @@ impl DataRepository {
     }
 
     pub async fn save_data(&self, job_id: Uuid, result: ResultMessage) -> Result<(), sqlx::Error> {
-        sqlx::query("INSERT INTO bms_data (job_id, download, ping, head) VALUES ($1, $2, $3, $4)")
-            .bind(job_id)
-            .bind(self.result_to_json(result.download_result))
-            .bind(self.result_to_json(result.ping_result))
-            .bind(self.result_to_json(result.head_result))
+        sqlx::query!(
+            "INSERT INTO bms_data (job_id, download, ping, head) VALUES ($1, $2, $3, $4)",
+            job_id,
+            self.result_to_json(result.download_result),
+            self.result_to_json(result.ping_result),
+            self.result_to_json(result.head_result)
+        )
             .execute(&self.pool)
             .await?;
 
@@ -44,21 +46,14 @@ impl DataRepository {
     }
 
     pub async fn get_data_by_job_id(&self, job_id: Uuid) -> Result<Vec<BmsData>, sqlx::Error> {
-        let rows = sqlx::query("SELECT id, download, ping, head FROM bms_data WHERE job_id = $1")
-            .bind(job_id)
+        let rows = sqlx::query_as!(
+            BmsData,
+            "SELECT id, download, ping, head FROM bms_data WHERE job_id = $1",
+            job_id
+        )
             .fetch_all(&self.pool)
             .await?;
 
-        let data: Vec<BmsData> = rows
-            .iter()
-            .map(|row| BmsData {
-                id: row.get("id"),
-                download: row.get("download"),
-                ping: row.get("ping"),
-                head: row.get("head"),
-            })
-            .collect();
-
-        Ok(data)
+        Ok(rows)
     }
 }
