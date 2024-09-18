@@ -8,6 +8,7 @@ use repository::data_repository::DataRepository;
 use sqlx::{migrate::Migrator, PgPool};
 use state::AppState;
 use tokio::net::TcpListener;
+use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::{debug, info};
@@ -49,15 +50,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     debug!("RabbitMQ host: {}", addr);
 
-    let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
-    job_queue.setup(&addr).await?;
+    let job_queue = Arc::new(Mutex::new(QueueHandler::clone(&CONFIG_QUEUE_JOB)));
+    job_queue.lock().await.setup(&addr).await?;
     info!("Successfully set up job queue");
 
     // Initialize data repository
     let data_repo = Arc::new(DataRepository::new(pool.clone()));
 
     // Initialize app state
-    let app_state = Arc::new(AppState::new(job_queue, data_repo));
+    let app_state = Arc::new(AppState::new(job_queue.clone(), data_repo));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
     data_queue.setup(&addr).await?;
@@ -85,9 +86,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .with_graceful_shutdown(shutdown_signal())
         .await?;
 
+    // TODO: do not accept new jobs and wait for execution of existing ones
+    // TODO: maybe lookup tokio::sync::Notify for this
+
     // Close the connection gracefully
-    // job_queue.close().await.unwrap(); // TODO: fix this !
-    // TODO: make sure that connection is closed properly !
+    job_queue.lock().await.close().await?;
+    data_queue.close().await?;
+
     info!("Scheduler shut down gracefully");
 
     Ok(())

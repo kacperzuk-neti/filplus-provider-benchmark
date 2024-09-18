@@ -61,7 +61,9 @@ pub async fn handle(
 
     state
         .job_queue
-        .publish(&job_message, "all")
+        .lock()
+        .await
+        .publish(&job_message, &payload.routing_key)
         .await
         .map_err(|_| internal_server_error("Failed to publish job message"))?;
 
