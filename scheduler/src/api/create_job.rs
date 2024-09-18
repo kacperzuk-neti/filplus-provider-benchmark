@@ -3,6 +3,8 @@ use axum::{
     extract::{Json, State},
 };
 use rabbitmq::{JobMessage, Message};
+use rand::Rng;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -32,6 +34,8 @@ pub async fn handle(
 ) -> Result<ApiResponse<JobResponse>, ApiResponse<()>> {
     let url = validate_url(&payload)?;
 
+    let (start_range, end_range) = get_file_range_for_file(&url.to_string()).await?;
+
     let job_id = Uuid::new_v4();
     let now_plus = SystemTime::now() + Duration::new(5, 0);
     let start_timestamp = now_plus
@@ -48,6 +52,8 @@ pub async fn handle(
         payload: JobMessage {
             url: url.to_string(),
             start_timestamp,
+            start_range,
+            end_range,
         },
     };
 
@@ -71,4 +77,39 @@ fn validate_url(payload: &JobInput) -> Result<Url, ApiResponse<()>> {
         "http" | "https" => Ok(url),
         _ => Err(bad_request("URL scheme must be http or https")),
     }
+}
+
+/// Get a random range of 100MB from the file using HEAD request
+async fn get_file_range_for_file(url: &str) -> Result<(u64, u64), ApiResponse<()>> {
+    let response = Client::new()
+        .head(url)
+        .send()
+        .await
+        .map_err(|e| bad_request(format!("Failed to publish job message {}", e)))?;
+
+    debug!("Response: {:?}", response);
+
+    // For some freak reason response.content_length() is returning 0
+    let content_length = response
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .ok_or_else(|| bad_request("Content-Length header is missing in the response"))?
+        .to_str()
+        .map_err(|e| bad_request(format!("Failed to parse Content-Length header: {}", e)))?
+        .parse::<u64>()
+        .map_err(|e| bad_request(format!("Failed to parse Content-Length header: {}", e)))?;
+
+    debug!("Content-Length: {:?}", content_length);
+
+    let size = 100 * 1024 * 1024; // 100 MB
+
+    if content_length < size {
+        return Err(bad_request("File size is less than 100MB"));
+    }
+
+    let mut rng = rand::thread_rng();
+    let start_range = rng.gen_range(0..content_length - size);
+    let end_range = start_range + size;
+
+    Ok((start_range, end_range))
 }

@@ -12,7 +12,7 @@ use reqwest::{
 use tracing::{debug, error, info};
 
 /// Prepare the HTTP request
-fn prepare_request(url: &str, range_start: usize, range_end: usize) -> reqwest::RequestBuilder {
+fn prepare_request(url: &str, range_start: u64, range_end: u64) -> reqwest::RequestBuilder {
     const USER_AGENT_STR: &str = "curl/7.68.0";
     const ACCEPT_TYPE: &str = "*/*";
 
@@ -55,10 +55,7 @@ fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
 
 /// Benchmark the download speed of the given URL
 pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadError> {
-    let range_start = 0;
-    let range_end = 100 * 1024 * 1024; // 100 MB
-
-    let request = prepare_request(&payload.url, range_start, range_end);
+    let request = prepare_request(&payload.url, payload.start_range, payload.end_range);
 
     let start_time = SystemTime::now();
     let mut bytes: usize = 0;

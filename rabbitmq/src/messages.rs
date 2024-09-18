@@ -5,6 +5,8 @@ use std::time::{Duration, SystemTime};
 pub struct JobMessage {
     pub url: String,
     pub start_timestamp: Duration,
+    pub start_range: u64,
+    pub end_range: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
