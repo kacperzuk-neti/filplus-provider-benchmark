@@ -18,6 +18,7 @@ use crate::state::AppState;
 #[derive(Deserialize)]
 pub struct JobInput {
     pub url: String,
+    pub routing_key: String,
 }
 
 #[derive(Serialize)]
@@ -33,6 +34,7 @@ pub async fn handle(
     Json(payload): Json<JobInput>,
 ) -> Result<ApiResponse<JobResponse>, ApiResponse<()>> {
     let url = validate_url(&payload)?;
+    validate_routing_key(&payload)?;
 
     let (start_range, end_range) = get_file_range_for_file(&url.to_string()).await?;
 
@@ -79,6 +81,16 @@ fn validate_url(payload: &JobInput) -> Result<Url, ApiResponse<()>> {
         "http" | "https" => Ok(url),
         _ => Err(bad_request("URL scheme must be http or https")),
     }
+}
+
+/// Validate routing key
+/// In future we want to validate if the routing key is valid, maybe by checking a set of allowed keys
+fn validate_routing_key(payload: &JobInput) -> Result<(), ApiResponse<()>> {
+    if payload.routing_key.is_empty() {
+        return Err(bad_request("Routing key cannot be empty"));
+    }
+
+    Ok(())
 }
 
 /// Get a random range of 100MB from the file using HEAD request

@@ -18,6 +18,15 @@ Global ENV:
 
 Worker ENV:
 - `WORKER_NAME`: Unique identifier of the worker, user to bind to the queue
+- `WORKER_TOPICS`: Comma separated list of topics the worker is interested in (All workers are interested in the `all` topic)
+
+## Dev Setup
+
+`cp .env.example .env` to create the env file
+`docker compose up -d` to start the RabbitMQ and PostgresSQL containers
+`cargo run --bin scheduler` to start the scheduler
+`WORKER_NAME=worker1 WORKER_TOPICS=all,europe,poland cargo run --bin worker` to start first worker
+`WORKER_NAME=worker2 WORKER_TOPICS=all,europe,spain cargo run --bin worker` to start second worker
 
 ## RabbitMQ Communication
 
