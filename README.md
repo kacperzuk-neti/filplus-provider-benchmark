@@ -22,11 +22,11 @@ Worker ENV:
 
 ## Dev Setup
 
-`cp .env.example .env` to create the env file
-`docker compose up -d` to start the RabbitMQ and PostgresSQL containers
-`cargo run --bin scheduler` to start the scheduler
-`WORKER_NAME=worker1 WORKER_TOPICS=all,europe,poland cargo run --bin worker` to start first worker
-`WORKER_NAME=worker2 WORKER_TOPICS=all,europe,spain cargo run --bin worker` to start second worker
+1. `cp .env.example .env` to create the env file
+1. `docker compose up -d` to start the RabbitMQ and PostgresSQL containers
+1. `cargo run --bin scheduler` to start the scheduler
+1. `WORKER_NAME=worker1 WORKER_TOPICS=all,europe,poland cargo run --bin worker` to start first worker
+1. `WORKER_NAME=worker2 WORKER_TOPICS=all,europe,spain cargo run --bin worker` to start second worker
 
 ## RabbitMQ Communication
 
