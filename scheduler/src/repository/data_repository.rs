@@ -1,6 +1,6 @@
 use rabbitmq::ResultMessage;
 use serde::Serialize;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Clone)]

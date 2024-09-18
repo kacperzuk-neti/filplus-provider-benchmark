@@ -8,7 +8,7 @@ authors = ["Michał Mach <michal.mach@neti-soft.com>"]
 amqprs = "1.7.0"
 anyhow = "1.0.87"
 async-trait = "0.1.82"
-dotenv = "0.15.0"
+dotenvy = "0.15.7"
 rabbitmq = { version = "0.1.0", path = "../rabbitmq" }
 reqwest = "0.12.7"
 serde = "1.0.209"
