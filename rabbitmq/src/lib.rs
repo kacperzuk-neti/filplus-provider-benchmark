@@ -179,7 +179,7 @@ pub const CONFIG_QUEUE_JOB: QueueHandler = QueueHandler {
 pub const CONFIG_QUEUE_RESULT: QueueHandler = QueueHandler {
     exchange_name: "result_exchange",
     queue_name: Some("result_queue"),
-    routing_key: Some("worker_a_result"),
+    routing_key: Some("worker_result"),
     exchange_type: "direct",
     connection: None,
     channel: None,
