@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
-use tracing::{debug, info};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 mod api;
@@ -42,7 +42,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize database connection pool & run migrations
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    debug!("PostgreSQL url: {}", db_url);
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
