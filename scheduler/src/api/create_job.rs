@@ -2,6 +2,7 @@ use axum::{
     debug_handler,
     extract::{Json, State},
 };
+use axum_extra::extract::WithRejection;
 use rabbitmq::{JobMessage, Message};
 use rand::Rng;
 use reqwest::Client;
@@ -31,7 +32,7 @@ pub struct JobResponse {
 #[debug_handler]
 pub async fn handle(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<JobInput>,
+    WithRejection(Json(payload), _): WithRejection<Json<JobInput>, ApiResponse<ErrorResponse>>,
 ) -> Result<ApiResponse<JobResponse>, ApiResponse<()>> {
     let url = validate_url(&payload)?;
     validate_routing_key(&payload)?;

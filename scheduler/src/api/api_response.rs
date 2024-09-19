@@ -1,3 +1,4 @@
+use axum::extract::rejection::{JsonRejection, QueryRejection};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Serialize;
@@ -12,6 +13,22 @@ pub enum ApiResponse<T> {
     InternalServerError(Json<ErrorResponse>),
     NotFound(Json<ErrorResponse>),
     OkResponse(Json<T>),
+}
+
+impl From<JsonRejection> for ApiResponse<ErrorResponse> {
+    fn from(rejection: JsonRejection) -> ApiResponse<ErrorResponse> {
+        ApiResponse::BadRequest(Json(ErrorResponse {
+            error: rejection.body_text(),
+        }))
+    }
+}
+
+impl From<QueryRejection> for ApiResponse<ErrorResponse> {
+    fn from(rejection: QueryRejection) -> ApiResponse<ErrorResponse> {
+        ApiResponse::BadRequest(Json(ErrorResponse {
+            error: rejection.body_text(),
+        }))
+    }
 }
 
 impl<T> IntoResponse for ApiResponse<T>
