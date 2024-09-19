@@ -47,10 +47,20 @@ impl QueueHandler {
         self.routing_key = Some(routing_key);
     }
 
-    pub async fn setup(&mut self, addr: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn setup(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let addr = env::var("RABBITMQ_HOST").expect("RABBITMQ_HOST must be set");
+        let port = env::var("RABBITMQ_PORT")
+            .unwrap_or_else(|_| "5672".to_string())
+            .parse::<u16>()
+            .expect("RABBITMQ_PORT must be a valid port number");
+        let username = env::var("RABBITMQ_USERNAME").expect("RABBITMQ_USERNAME must be set");
+        let password = env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set");
+
         // Open connection
-        let connection =
-            Connection::open(&OpenConnectionArguments::new(addr, 5672, "guest", "guest")).await?;
+        let connection = Connection::open(&OpenConnectionArguments::new(
+            &addr, port, &username, &password,
+        ))
+        .await?;
 
         // Open channel
         let channel = connection.open_channel(None).await?;
@@ -67,7 +77,7 @@ impl QueueHandler {
 
         if self.queue_name.is_none() || self.routing_key.is_none() {
             let worker_name: &'static str = Box::leak(
-                std::env::var("WORKER_NAME")
+                env::var("WORKER_NAME")
                     .unwrap_or_else(|_| "default_worker".to_string())
                     .into_boxed_str(),
             );

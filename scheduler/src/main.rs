@@ -46,12 +46,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
-    let addr = Arc::new(env::var("RABBITMQ_HOST").expect("RABBITMQ_HOST must be set"));
-
-    debug!("RabbitMQ host: {}", addr);
-
     let job_queue = Arc::new(Mutex::new(QueueHandler::clone(&CONFIG_QUEUE_JOB)));
-    job_queue.lock().await.setup(&addr).await?;
+    job_queue.lock().await.setup().await?;
     info!("Successfully set up job queue");
 
     // Initialize data repository
@@ -61,7 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let app_state = Arc::new(AppState::new(job_queue.clone(), data_repo));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
-    data_queue.setup(&addr).await?;
+    data_queue.setup().await?;
     info!("Successfully set up data queue");
 
     let consumer = DataConsumer::new(app_state.clone());

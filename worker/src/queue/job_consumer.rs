@@ -59,7 +59,7 @@ impl JobConsumer {
     }
 
     pub async fn run(&self, content: Vec<u8>) -> Result<()> {
-        let content_str = String::from_utf8(content).map_err(|e| Box::new(e))?;
+        let content_str = String::from_utf8(content)?;
 
         // Parse the received message
         let (job_id, job_message) = self.parse_message(&content_str).await?;

@@ -36,7 +36,7 @@ pub async fn handle(
     let url = validate_url(&payload)?;
     validate_routing_key(&payload)?;
 
-    let (start_range, end_range) = get_file_range_for_file(&url.as_ref()).await?;
+    let (start_range, end_range) = get_file_range_for_file(url.as_ref()).await?;
 
     let job_id = Uuid::new_v4();
     let now_plus = SystemTime::now() + Duration::new(5, 0);

@@ -12,9 +12,11 @@
 Example env file: [.env.example](./.env.example)
 
 Global ENV:
-- `DATABASE_URL`: URI to the postgres database
+- `DATABASE_URL`: URI to the PostgresSQL database
 - `RABBITMQ_HOST`: Hostname of the RabbitMQ server
-- `LOG_LEVEL`: Log level of the application (debug, info, warn, error)
+- `RABBITMQ_USERNAME`: Username to authenticate with RabbitMQ
+- `RABBITMQ_PASSWORD`: Password to authenticate with RabbitMQ
+- `LOG_LEVEL`: Log level of the application (debug, info, warn, error) - default: info
 
 Worker ENV:
 - `WORKER_NAME`: Unique identifier of the worker, user to bind to the queue

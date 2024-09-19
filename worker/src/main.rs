@@ -1,9 +1,9 @@
-use std::{env, error::Error, sync::Arc};
+use std::{env, error::Error};
 
 use anyhow::Result;
 use queue::job_consumer::JobConsumer;
 use rabbitmq::*;
-use tracing::{debug, info};
+use tracing::info;
 use tracing_subscriber::EnvFilter;
 
 mod handlers;
@@ -24,16 +24,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     info!("Worker started");
 
-    let addr = Arc::new(env::var("RABBITMQ_HOST").unwrap_or_else(|_| "127.0.0.1".to_string()));
-
-    debug!("RabbitMQ host: {}", addr);
-
     let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
-    job_queue.setup(&addr).await?;
+    job_queue.setup().await?;
     info!("Successfully set up job queue");
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
-    data_queue.setup(&addr).await?;
+    data_queue.setup().await?;
     info!("Successfully set up data queue");
 
     let consumer = JobConsumer::new(data_queue.clone());
