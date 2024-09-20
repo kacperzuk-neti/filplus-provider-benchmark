@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    api::api_response::{bad_request, ApiResponse},
+    api::api_response::{bad_request, ApiResponse, ErrorResponse},
     repository::data_repository::BmsData,
     state::AppState,
 };
@@ -9,6 +9,7 @@ use axum::{
     debug_handler,
     extract::{Query, State},
 };
+use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -26,16 +27,11 @@ pub struct GetDataResponse {
     data: Vec<BmsData>,
 }
 
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    error: String,
-}
-
 /// GET /data?job_id={job_id}
 /// Get the data for a job
 #[debug_handler]
 pub async fn handle(
-    Query(params): Query<GetDataQuery>,
+    WithRejection(Query(params), _): WithRejection<Query<GetDataQuery>, ApiResponse<ErrorResponse>>,
     State(state): State<Arc<AppState>>,
 ) -> Result<ApiResponse<GetDataResponse>, ApiResponse<()>> {
     // Validate the job_id

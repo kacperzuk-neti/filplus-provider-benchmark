@@ -10,6 +10,7 @@ use reqwest::{
     Client,
 };
 use tracing::{debug, error, info};
+use uuid::Uuid;
 
 /// Prepare the HTTP request
 fn prepare_request(url: &str, range_start: u64, range_end: u64) -> reqwest::RequestBuilder {
@@ -54,7 +55,10 @@ fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
 }
 
 /// Benchmark the download speed of the given URL
-pub async fn process(payload: JobMessage) -> Result<DownloadResult, DownloadError> {
+#[tracing::instrument(skip(payload))]
+pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<DownloadResult, DownloadError> {
+    info!("Processing Download job");
+
     let request = prepare_request(&payload.url, payload.start_range, payload.end_range);
 
     let start_time = SystemTime::now();

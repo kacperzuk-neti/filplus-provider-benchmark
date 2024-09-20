@@ -41,9 +41,9 @@ impl JobConsumer {
         info!("Handling message: {:?} {:?}", job_id, job_message);
 
         let (download_result, ping_result, latency_result) = tokio::join!(
-            download::process(job_message.clone()),
-            ping::process(job_message.clone()),
-            head::process(job_message.clone()),
+            download::process(job_id, job_message.clone()),
+            ping::process(job_id, job_message.clone()),
+            head::process(job_id, job_message.clone()),
         );
 
         debug!(

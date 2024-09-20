@@ -3,8 +3,10 @@ use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;
 use tokio::time::Instant;
 use tracing::{debug, info};
+use uuid::Uuid;
 
-pub async fn process(payload: JobMessage) -> Result<HeadResult, HeadError> {
+#[tracing::instrument(skip(payload))]
+pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, HeadError> {
     info!("Processing HEAD job");
 
     let client = Client::new();
