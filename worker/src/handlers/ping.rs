@@ -6,9 +6,10 @@ use rand::random;
 use surge_ping::{Client, Config, PingIdentifier, PingSequence, ICMP};
 use tracing::{debug, error, info};
 use url::Url;
+use uuid::Uuid;
 
-#[tracing::instrument]
-pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
+#[tracing::instrument(skip(payload))]
+pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, PingError> {
     info!("Processing PING job");
 
     // Parse the URL and extract the host
@@ -22,7 +23,7 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
     // Resolve the host to an IP address
     let ip_address: IpAddr = (host, 0)
         .to_socket_addrs()
-        .map_err(|e| PingError {
+        .map_err(|_| PingError {
             error: "Failed to extract IP address from socket addr".to_string(),
         })?
         .map(|socket_addr| socket_addr.ip())
