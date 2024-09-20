@@ -1,16 +1,17 @@
 use std::net::{IpAddr, ToSocketAddrs};
-use std::process::Command;
-use std::str;
 
 use anyhow::Result;
 use rabbitmq::{JobMessage, PingError, PingResult};
+use rand::random;
+use surge_ping::{Client, Config, PingIdentifier, PingSequence, ICMP};
 use tracing::{debug, error, info};
 use url::Url;
+use uuid::Uuid;
 
-pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
+#[tracing::instrument(skip(payload))]
+pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, PingError> {
     info!("Processing PING job");
 
-    // TODO: make proper URL parsing and error handling!
     // Parse the URL and extract the host
     let url = Url::parse(&payload.url).map_err(|e| PingError {
         error: format!("UrlParseError: {}", e),
@@ -20,64 +21,47 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
     })?;
 
     // Resolve the host to an IP address
-    let ip_addresses: Vec<IpAddr> = (host, 0)
+    let ip_address: IpAddr = (host, 0)
         .to_socket_addrs()
-        .map_err(|e| PingError {
-            error: format!("socket addr: {}", e),
+        .map_err(|_| PingError {
+            error: "Failed to extract IP address from socket addr".to_string(),
         })?
         .map(|socket_addr| socket_addr.ip())
-        .collect();
-
-    if ip_addresses.is_empty() {
-        error!("Could not resolve host to IP addresses.");
-
-        return Err(PingError {
-            error: "Could not resolve host to IP addresses.".to_string(),
-        });
-    }
-
-    let ip_address = ip_addresses[0];
-    debug!("Resolved IP address: {}", ip_address);
-
-    let output = Command::new("ping")
-        .arg("-c")
-        .arg("10")
-        .arg(ip_address.to_string())
-        .output()
-        .map_err(|e| PingError {
-            error: format!("PingCommandError: {}", e),
+        .collect::<Vec<IpAddr>>()
+        .first()
+        .cloned() // Convert Option<&T> to Option<T>
+        .ok_or(PingError {
+            error: "Failed to extract IP address from socket addr".to_string(),
         })?;
 
-    if !output.status.success() {
-        return Err(PingError {
-            error: "Ping command failed.".to_string(),
-        });
-    }
-
-    let stdout = str::from_utf8(&output.stdout).map_err(|e| PingError {
-        error: format!("stdout err: {}", e),
+    let config = match ip_address {
+        IpAddr::V4(_) => Config::default(),
+        IpAddr::V6(_) => Config::builder().kind(ICMP::V6).build(),
+    };
+    let client = Client::new(&config).map_err(|e| PingError {
+        error: format!("SurgePingClientError: {}", e),
     })?;
-    debug!("Ping output:\n{}", stdout);
+    let mut pinger = client.pinger(ip_address, PingIdentifier(random())).await;
 
-    // Parse the latency statistics from the output
     let mut latencies: Vec<f64> = Vec::new();
-    for line in stdout.lines() {
-        if line.contains("time=") {
-            if let Some(time_str) = line.split("time=").nth(1) {
-                if let Some(latency_str) = time_str.split_whitespace().next() {
-                    if let Ok(latency) = latency_str.parse::<f64>() {
-                        latencies.push(latency);
-                    }
-                }
+    let seq_max = 10;
+    let packets_threshold = seq_max / 2;
+
+    for seq in 0..seq_max {
+        let (_, duration) = match pinger.ping(PingSequence(seq), &[6, 6, 6]).await {
+            Ok((packet, duration)) => (packet, duration),
+            Err(e) => {
+                error!("Failed to ping host: {}", e);
+                continue;
             }
-        }
+        };
+        latencies.push(duration.as_secs_f64());
     }
 
-    if latencies.is_empty() {
-        error!("Failed to parse latency values from ping output.");
-
+    // Check if we have at least half of the packets
+    if latencies.len() < packets_threshold.into() {
         return Err(PingError {
-            error: "Failed to parse latency values from ping output.".to_string(),
+            error: "Too many packets lost".to_string(),
         });
     }
 
@@ -101,6 +85,5 @@ pub async fn process(payload: JobMessage) -> Result<PingResult, PingError> {
         avg: avg_latency,
         min: min_latency,
         max: max_latency,
-        mean_dev: 0.0,
     })
 }

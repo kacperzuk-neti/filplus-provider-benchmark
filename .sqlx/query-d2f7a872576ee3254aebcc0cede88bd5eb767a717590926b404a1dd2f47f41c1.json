@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, download, ping, head FROM bms_data WHERE job_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "download",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 2,
+        "name": "ping",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 3,
+        "name": "head",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "d2f7a872576ee3254aebcc0cede88bd5eb767a717590926b404a1dd2f47f41c1"
+}
