@@ -13,7 +13,7 @@ on:
         type: string
 
 env:
-  ECR_REPOSITORY: "filplus-backend"
+  ECR_REPOSITORY: "filplus-provider-benchmark"
 
 jobs:
   format_and_lint:
