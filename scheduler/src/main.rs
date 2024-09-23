@@ -32,7 +32,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     color_eyre::install()?;
 
     // Load .env
-    dotenvy::dotenv()?;
+    dotenvy::dotenv()
+        .inspect_err(|_| eprintln!("Failed to read .env file, ignoring."))
+        .ok();
 
     // Initialize logging
     let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
