@@ -1,5 +1,6 @@
 use std::{env, error::Error, sync::Arc};
 
+use crate::config::get_env_or_throw;
 use axum::Router;
 use color_eyre::Result;
 use queue::data_consumer::DataConsumer;
@@ -13,12 +14,15 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use types::DbConnectParams;
 
 mod api;
 mod queue;
 mod repository;
 mod routes;
 mod state;
+mod types;
+pub mod config;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./src/migrations");
 
@@ -41,7 +45,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Initialize database connection pool & run migrations
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        let params: DbConnectParams =
+            serde_json::from_str(&get_env_or_throw("DB_CONNECT_PARAMS_JSON"))
+                .expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
+        params.to_url()
+    });
+
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
