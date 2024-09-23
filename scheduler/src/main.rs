@@ -13,12 +13,14 @@ use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
+use types::DbConnectParams;
 
 mod api;
 mod queue;
 mod repository;
 mod routes;
 mod state;
+mod types;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./src/migrations");
 
@@ -41,7 +43,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .init();
 
     // Initialize database connection pool & run migrations
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
+        let json_params = env::var("DB_CONNECT_PARAMS_JSON")
+            .expect("DB_CONNECT_PARAMS_JSON environment variable not set");
+
+        let params: DbConnectParams =
+            serde_json::from_str(&json_params).expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
+
+        params.to_url()
+    });
+
     let pool = PgPool::connect(&db_url).await?;
     MIGRATOR.run(&pool).await?;
 
