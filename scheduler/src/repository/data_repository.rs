@@ -39,8 +39,8 @@ impl DataRepository {
             self.result_to_json(result.ping_result),
             self.result_to_json(result.head_result)
         )
-            .execute(&self.pool)
-            .await?;
+        .execute(&self.pool)
+        .await?;
 
         Ok(())
     }
@@ -51,8 +51,8 @@ impl DataRepository {
             "SELECT id, download, ping, head FROM bms_data WHERE job_id = $1",
             job_id
         )
-            .fetch_all(&self.pool)
-            .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         Ok(rows)
     }
