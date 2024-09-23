@@ -1,6 +1,5 @@
 use std::{env, error::Error, sync::Arc};
 
-use crate::config::get_env_or_throw;
 use axum::Router;
 use color_eyre::Result;
 use queue::data_consumer::DataConsumer;
@@ -22,7 +21,6 @@ mod repository;
 mod routes;
 mod state;
 mod types;
-pub mod config;
 
 static MIGRATOR: Migrator = sqlx::migrate!("./src/migrations");
 
@@ -46,9 +44,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Initialize database connection pool & run migrations
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| {
-        let params: DbConnectParams =
-            serde_json::from_str(&get_env_or_throw("DB_CONNECT_PARAMS_JSON"))
-                .expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
+        let json_params = env::var("DB_CONNECT_PARAMS_JSON")
+            .expect("DB_CONNECT_PARAMS_JSON environment variable not set");
+
+        let params: DbConnectParams = serde_json::from_str(&json_params)
+            .expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
+
         params.to_url()
     });
 
