@@ -47,8 +47,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let json_params = env::var("DB_CONNECT_PARAMS_JSON")
             .expect("DB_CONNECT_PARAMS_JSON environment variable not set");
 
-        let params: DbConnectParams = serde_json::from_str(&json_params)
-            .expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
+        let params: DbConnectParams =
+            serde_json::from_str(&json_params).expect("Invalid JSON in DB_CONNECT_PARAMS_JSON");
 
         params.to_url()
     });
