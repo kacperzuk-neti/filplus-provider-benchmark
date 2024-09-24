@@ -1,7 +1,7 @@
 # Bandwith Measurement System (BMS)
 
-
 ## Infrastucture
+
 - Scheduler (Rust)
 - Worker (Rust)
 - PostgresSQL
@@ -12,13 +12,15 @@
 Example env file: [.env.example](./.env.example)
 
 Global ENV:
+
 - `DATABASE_URL`: URI to the PostgresSQL database
-- `RABBITMQ_HOST`: Hostname of the RabbitMQ server
+- `RABBITMQ_ENDPOINT`: Endpoint of the RabbitMQ server (host:port)
 - `RABBITMQ_USERNAME`: Username to authenticate with RabbitMQ
 - `RABBITMQ_PASSWORD`: Password to authenticate with RabbitMQ
 - `LOG_LEVEL`: Log level of the application (debug, info, warn, error) - default: info
 
 Worker ENV:
+
 - `WORKER_NAME`: Unique identifier of the worker, user to bind to the queue
 - `WORKER_TOPICS`: Comma separated list of topics the worker is interested in (All workers are interested in the `all` topic)
 

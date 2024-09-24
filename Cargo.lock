@@ -1739,6 +1739,7 @@ dependencies = [
  "amqprs",
  "serde",
  "serde_json",
+ "url",
  "uuid",
 ]
 
