@@ -60,7 +60,6 @@ impl QueueHandler {
             .port()
             .unwrap_or(5672)
             .to_string()
-            .parse::<u16>()
             .expect("RABBITMQ_PORT must be a valid port number");
 
         let username = env::var("RABBITMQ_USERNAME").expect("RABBITMQ_USERNAME must be set");
