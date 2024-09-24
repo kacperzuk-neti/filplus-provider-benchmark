@@ -51,7 +51,7 @@ impl QueueHandler {
     pub async fn setup(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let endpoint = env::var("RABBITMQ_ENDPOINT").expect("RABBITMQ_ENDPOINT must be set");
         let parsed_url = Url::parse(&endpoint).expect("Invalid URL format for RABBITMQ_ENDPOINT");
-        
+
         let addr = parsed_url
             .host_str()
             .expect("RABBITMQ_ENDPOINT must contain a host");
@@ -62,7 +62,7 @@ impl QueueHandler {
             .to_string()
             .parse::<u16>()
             .expect("RABBITMQ_PORT must be a valid port number");
-            
+
         let username = env::var("RABBITMQ_USERNAME").expect("RABBITMQ_USERNAME must be set");
         let password = env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set");
 
