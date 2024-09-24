@@ -56,11 +56,7 @@ impl QueueHandler {
             .host_str()
             .expect("RABBITMQ_ENDPOINT must contain a host");
 
-        let port = parsed_url
-            .port()
-            .unwrap_or(5672)
-            .to_string()
-            .expect("RABBITMQ_PORT must be a valid port number");
+        let port = parsed_url.port().unwrap_or(5672);
 
         let username = env::var("RABBITMQ_USERNAME").expect("RABBITMQ_USERNAME must be set");
         let password = env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set");
