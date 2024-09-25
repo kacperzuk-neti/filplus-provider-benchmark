@@ -73,8 +73,8 @@ impl QueueHandler {
             .await?
         } else {
             Connection::open(&OpenConnectionArguments::new(
-            addr, port, &username, &password,
-        ))
+                addr, port, &username, &password,
+            ))
             .await?
         };
 
