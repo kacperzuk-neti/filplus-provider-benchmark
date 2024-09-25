@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Michał Mach <michal.mach@neti-soft.com>"]
 
 [dependencies]
-amqprs = "1.7.0"
+amqprs = { version = "2.0.0", features = ["tls"] }
 anyhow = "1.0.87"
 async-trait = "0.1.82"
 dotenvy = "0.15.7"

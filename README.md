@@ -14,6 +14,7 @@ Example env file: [.env.example](./.env.example)
 Global ENV:
 
 - `DATABASE_URL`: URI to the PostgresSQL database
+- `RABBITMQ_SSL_ENABLED`: Is RabbitMQ SSL enabled (true, false) - default: true
 - `RABBITMQ_ENDPOINT`: Endpoint of the RabbitMQ server (host:port)
 - `RABBITMQ_USERNAME`: Username to authenticate with RabbitMQ
 - `RABBITMQ_PASSWORD`: Password to authenticate with RabbitMQ

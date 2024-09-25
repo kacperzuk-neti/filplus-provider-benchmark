@@ -7,6 +7,7 @@ use amqprs::{
     },
     connection::{Connection, OpenConnectionArguments},
     consumer::AsyncConsumer,
+    tls::TlsAdaptor,
     BasicProperties,
 };
 use serde::{Deserialize, Serialize};
@@ -62,10 +63,20 @@ impl QueueHandler {
         let password = env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set");
 
         // Open connection
-        let connection = Connection::open(&OpenConnectionArguments::new(
+        let connection = if env::var("RABBITMQ_SSL_ENABLED").unwrap_or_else(|_| "true".to_string())
+            == "true"
+        {
+            Connection::open(
+                OpenConnectionArguments::new(addr, port, &username, &password)
+                    .tls_adaptor(TlsAdaptor::without_client_auth(None, addr.to_string()).unwrap()),
+            )
+            .await?
+        } else {
+            Connection::open(&OpenConnectionArguments::new(
             addr, port, &username, &password,
         ))
-        .await?;
+            .await?
+        };
 
         // Open channel
         let channel = connection.open_channel(None).await?;
