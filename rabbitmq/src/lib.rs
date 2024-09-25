@@ -7,6 +7,7 @@ use amqprs::{
     },
     connection::{Connection, OpenConnectionArguments},
     consumer::AsyncConsumer,
+    tls::TlsAdaptor,
     BasicProperties,
 };
 use serde::{Deserialize, Serialize};
@@ -56,16 +57,34 @@ impl QueueHandler {
             .host_str()
             .expect("RABBITMQ_ENDPOINT must contain a host");
 
+        let is_ssl = match parsed_url.scheme() {
+            "amqp" => false,
+            "http" => false,
+            "amqps" => true,
+            "amqps+ssl" => true,
+            "amqps+tls" => true,
+            "https" => true,
+            _ => panic!("Invalid scheme for RABBITMQ_ENDPOINT"),
+        };
+
         let port = parsed_url.port().unwrap_or(5672);
 
         let username = env::var("RABBITMQ_USERNAME").expect("RABBITMQ_USERNAME must be set");
         let password = env::var("RABBITMQ_PASSWORD").expect("RABBITMQ_PASSWORD must be set");
 
         // Open connection
-        let connection = Connection::open(&OpenConnectionArguments::new(
-            addr, port, &username, &password,
-        ))
-        .await?;
+        let connection = if is_ssl {
+            Connection::open(
+                OpenConnectionArguments::new(addr, port, &username, &password)
+                    .tls_adaptor(TlsAdaptor::without_client_auth(None, addr.to_string()).unwrap()),
+            )
+            .await?
+        } else {
+            Connection::open(&OpenConnectionArguments::new(
+                addr, port, &username, &password,
+            ))
+            .await?
+        };
 
         // Open channel
         let channel = connection.open_channel(None).await?;
