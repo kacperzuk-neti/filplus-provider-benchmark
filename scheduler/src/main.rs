@@ -3,8 +3,10 @@ use std::{env, error::Error, sync::Arc};
 use axum::Router;
 use color_eyre::Result;
 use queue::data_consumer::DataConsumer;
+use queue::status_consumer::StatusConsumer;
 use rabbitmq::*;
 use repository::data_repository::DataRepository;
+use repository::worker_repository::WorkerRepository;
 use sqlx::{migrate::Migrator, PgPool};
 use state::AppState;
 use tokio::net::TcpListener;
@@ -62,19 +64,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     job_queue.lock().await.setup().await?;
     info!("Successfully set up job queue");
 
-    // Initialize data repository
+    // Initialize repositories
     let data_repo = Arc::new(DataRepository::new(pool.clone()));
+    let worker_repo = Arc::new(WorkerRepository::new(pool.clone()));
 
     // Initialize app state
-    let app_state = Arc::new(AppState::new(job_queue.clone(), data_repo));
+    let app_state = Arc::new(AppState::new(job_queue.clone(), data_repo, worker_repo));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
     data_queue.setup().await?;
     info!("Successfully set up data queue");
 
-    let consumer = DataConsumer::new(app_state.clone());
-    data_queue.subscribe(consumer).await?;
+    let data_consumer = DataConsumer::new(app_state.clone());
+    data_queue.subscribe(data_consumer).await?;
     info!("Successfully started data queue consumer");
+
+    let mut status_queue = QueueHandler::clone(&CONFIG_QUEUE_STATUS);
+    status_queue.setup().await?;
+    let status_consumer = StatusConsumer::new(app_state.clone());
+    status_queue.subscribe(status_consumer).await?;
+    info!("Successfully started status queue consumer");
 
     let app = Router::new()
         .merge(routes::create_routes())
@@ -100,6 +109,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Close the connection gracefully
     job_queue.lock().await.close().await?;
     data_queue.close().await?;
+    status_queue.close().await?;
 
     info!("Scheduler shut down gracefully");
 
