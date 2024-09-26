@@ -25,9 +25,7 @@ impl DataConsumer {
     async fn parse_message(&self, content_str: &str) -> Result<(Uuid, ResultMessage)> {
         match serde_json::from_str::<Message>(content_str) {
             Ok(Message::WorkerResult { job_id, result }) => Ok((job_id, result)),
-            Ok(Message::WorkerJob { .. }) => {
-                Err(anyhow!("Received unexpected WorkerResult message"))
-            }
+            Ok(_) => Err(anyhow!("Received unexpected message")),
             Err(e) => {
                 error!("Error parsing message: {:?}", e);
                 Err(e.into())
