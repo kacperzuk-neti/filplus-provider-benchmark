@@ -1,5 +1,8 @@
-use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime};
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JobMessage {
@@ -72,4 +75,34 @@ impl ResultMessage {
             head_result,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WorkerStatusType {
+    Lifecycle,
+    Job,
+    Heartbeat,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WorkerStatus {
+    Online,
+    Offline,
+}
+impl WorkerStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            WorkerStatus::Online => "online",
+            WorkerStatus::Offline => "offline",
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct StatusMessage {
+    pub worker_name: String,
+    pub status: Option<WorkerStatus>,
+    pub status_type: WorkerStatusType,
+    pub timestamp: DateTime<Utc>,
+    pub job_id: Option<Uuid>,
 }

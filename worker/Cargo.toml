@@ -8,6 +8,7 @@ authors = ["Michał Mach <michal.mach@neti-soft.com>"]
 amqprs = { version = "2.0.0", features = ["tls"] }
 anyhow = "1.0.87"
 async-trait = "0.1.82"
+chrono = { version = "0.4.38", features = ["serde"] }
 dotenvy = "0.15.7"
 rabbitmq = { version = "0.1.0", path = "../rabbitmq" }
 rand = "0.8.5"

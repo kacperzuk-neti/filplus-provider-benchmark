@@ -11,21 +11,25 @@ use serde_json;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
+use super::status_sender::StatusSender;
+
 pub struct JobConsumer {
     data_queue: QueueHandler,
+    status_sender: StatusSender,
 }
 
 impl JobConsumer {
-    pub fn new(data_queue: QueueHandler) -> Self {
-        Self { data_queue }
+    pub fn new(data_queue: QueueHandler, status_sender: StatusSender) -> Self {
+        Self {
+            data_queue,
+            status_sender,
+        }
     }
 
     async fn parse_message(&self, content_str: &str) -> Result<(Uuid, JobMessage)> {
         match serde_json::from_str::<Message>(content_str) {
             Ok(Message::WorkerJob { job_id, payload }) => Ok((job_id, payload)),
-            Ok(Message::WorkerResult { .. }) => {
-                Err(anyhow!("Received unexpected WorkerResult message"))
-            }
+            Ok(_) => Err(anyhow!("Received unexpected message")),
             Err(e) => {
                 error!("Error parsing message: {:?}", e);
                 Err(e.into())
@@ -40,6 +44,12 @@ impl JobConsumer {
     ) -> Result<ResultMessage> {
         info!("Handling message: {:?} {:?}", job_id, job_message);
 
+        self.status_sender
+            .send_job_status(Some(job_id))
+            .await
+            .inspect_err(|e| error!("Error sending job status for job_id: {}, e: {}", job_id, e))
+            .ok();
+
         let (download_result, ping_result, latency_result) = tokio::join!(
             download::process(job_id, job_message.clone()),
             ping::process(job_id, job_message.clone()),
@@ -50,6 +60,12 @@ impl JobConsumer {
             "Results: {:#?} {:#?} {:#?}",
             ping_result, latency_result, download_result,
         );
+
+        self.status_sender
+            .send_job_status(None)
+            .await
+            .inspect_err(|e| error!("Error sending job status for job_id: {}, e: {}", job_id, e))
+            .ok();
 
         Ok(ResultMessage::new(
             download_result,
