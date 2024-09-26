@@ -2,7 +2,8 @@ use std::env;
 
 use chrono::Utc;
 use rabbitmq::{
-    Message, QueueHandler, StatusMessage, WorkerStatus, WorkerStatusType, CONFIG_QUEUE_STATUS,
+    Message, QueueHandler, StatusMessage, WorkerStatus, WorkerStatusDetails,
+    WorkerStatusJobDetails, CONFIG_QUEUE_STATUS,
 };
 use uuid::Uuid;
 
@@ -22,11 +23,9 @@ impl StatusSender {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let message = Message::WorkerStatus {
             status: StatusMessage {
-                status: Some(status),
+                status: WorkerStatusDetails::Lifecycle(status),
                 timestamp: Utc::now(),
                 worker_name: env::var("WORKER_NAME").unwrap(),
-                status_type: WorkerStatusType::Lifecycle,
-                job_id: None,
             },
         };
 
@@ -39,13 +38,13 @@ impl StatusSender {
         &self,
         job_id: Option<Uuid>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let job_details = job_id.map(|job_id| WorkerStatusJobDetails { job_id });
+
         let message = Message::WorkerStatus {
             status: StatusMessage {
-                status: None,
+                status: WorkerStatusDetails::Job(job_details),
                 timestamp: Utc::now(),
                 worker_name: env::var("WORKER_NAME").unwrap(),
-                status_type: WorkerStatusType::Job,
-                job_id,
             },
         };
 
@@ -57,11 +56,9 @@ impl StatusSender {
     pub async fn send_heartbeat_status(&self) -> Result<(), Box<dyn std::error::Error>> {
         let message = Message::WorkerStatus {
             status: StatusMessage {
-                status: None,
+                status: WorkerStatusDetails::Heartbeat,
                 timestamp: Utc::now(),
                 worker_name: env::var("WORKER_NAME").unwrap(),
-                status_type: WorkerStatusType::Heartbeat,
-                job_id: None,
             },
         };
 

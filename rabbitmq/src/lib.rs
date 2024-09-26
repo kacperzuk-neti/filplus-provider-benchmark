@@ -20,7 +20,7 @@ mod messages;
 pub use messages::{
     AccumulatingBytes, DownloadError, DownloadResult, HeadError, HeadResult, IntervalBytes,
     JobMessage, PingError, PingResult, ResultMessage, StatusMessage, WorkerStatus,
-    WorkerStatusType,
+    WorkerStatusDetails, WorkerStatusJobDetails,
 };
 
 // Messages that can be sent or received

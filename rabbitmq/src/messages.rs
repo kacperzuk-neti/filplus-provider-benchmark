@@ -78,9 +78,14 @@ impl ResultMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum WorkerStatusType {
-    Lifecycle,
-    Job,
+pub struct WorkerStatusJobDetails {
+    pub job_id: Uuid,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub enum WorkerStatusDetails {
+    Lifecycle(WorkerStatus),
+    Job(Option<WorkerStatusJobDetails>),
     Heartbeat,
 }
 
@@ -101,8 +106,6 @@ impl WorkerStatus {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StatusMessage {
     pub worker_name: String,
-    pub status: Option<WorkerStatus>,
-    pub status_type: WorkerStatusType,
+    pub status: WorkerStatusDetails,
     pub timestamp: DateTime<Utc>,
-    pub job_id: Option<Uuid>,
 }

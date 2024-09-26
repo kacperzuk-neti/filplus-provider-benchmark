@@ -8,7 +8,7 @@ use amqprs::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rabbitmq::{Message, StatusMessage, WorkerStatusType};
+use rabbitmq::{Message, StatusMessage, WorkerStatusDetails};
 use serde_json;
 use tracing::{debug, error, info};
 
@@ -35,29 +35,25 @@ impl StatusConsumer {
     async fn process_message(&self, status_message: StatusMessage) -> Result<()> {
         info!("Handling message: {:?}", status_message);
 
-        match status_message.status_type {
-            WorkerStatusType::Lifecycle => {
+        match status_message.status {
+            WorkerStatusDetails::Lifecycle(status) => {
                 self.state
                     .worker_repo
                     .update_worker_status(
                         status_message.worker_name,
-                        status_message.status.unwrap(),
+                        status,
                         status_message.timestamp,
                     )
                     .await?;
             }
-            WorkerStatusType::Job => {
+            WorkerStatusDetails::Job(job_details) => {
+                let job_id = job_details.map(|j| j.job_id);
                 self.state
                     .worker_repo
-                    .update_worker_job(
-                        status_message.worker_name,
-                        status_message.job_id,
-                        // status_message.status,
-                        status_message.timestamp,
-                    )
+                    .update_worker_job(status_message.worker_name, job_id, status_message.timestamp)
                     .await?;
             }
-            WorkerStatusType::Heartbeat => {
+            WorkerStatusDetails::Heartbeat => {
                 self.state
                     .worker_repo
                     .update_worker_heartbeat(status_message.worker_name, status_message.timestamp)
