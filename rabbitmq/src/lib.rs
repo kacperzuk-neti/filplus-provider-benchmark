@@ -164,7 +164,7 @@ impl QueueHandler {
 
         self.channel
             .as_ref()
-            .ok_or_else(|| "Channel not initialized")?
+            .ok_or("Channel not initialized")?
             .basic_publish(BasicProperties::default(), serialized_message, args)
             .await?;
 
@@ -182,7 +182,7 @@ impl QueueHandler {
 
         self.channel
             .as_ref()
-            .ok_or_else(|| "Channel not initialized")?
+            .ok_or("Channel not initialized")?
             .basic_consume(consumer, args)
             .await
             .unwrap();
