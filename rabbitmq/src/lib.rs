@@ -19,7 +19,8 @@ mod messages;
 // re export messages
 pub use messages::{
     AccumulatingBytes, DownloadError, DownloadResult, HeadError, HeadResult, IntervalBytes,
-    JobMessage, PingError, PingResult, ResultMessage,
+    JobMessage, PingError, PingResult, ResultMessage, StatusMessage, WorkerStatus,
+    WorkerStatusDetails, WorkerStatusJobDetails,
 };
 
 // Messages that can be sent or received
@@ -27,6 +28,7 @@ pub use messages::{
 pub enum Message {
     WorkerJob { job_id: Uuid, payload: JobMessage },
     WorkerResult { job_id: Uuid, result: ResultMessage },
+    WorkerStatus { status: StatusMessage },
 }
 
 // Configuration for RabbitMQ exchange, queue, and routing key
@@ -162,7 +164,7 @@ impl QueueHandler {
 
         self.channel
             .as_ref()
-            .unwrap()
+            .ok_or("Channel not initialized")?
             .basic_publish(BasicProperties::default(), serialized_message, args)
             .await?;
 
@@ -180,7 +182,7 @@ impl QueueHandler {
 
         self.channel
             .as_ref()
-            .unwrap()
+            .ok_or("Channel not initialized")?
             .basic_consume(consumer, args)
             .await
             .unwrap();
@@ -214,6 +216,15 @@ pub const CONFIG_QUEUE_RESULT: QueueHandler = QueueHandler {
     exchange_name: "result_exchange",
     queue_name: Some("result_queue"),
     routing_key: Some("worker_result"),
+    exchange_type: "direct",
+    connection: None,
+    channel: None,
+};
+
+pub const CONFIG_QUEUE_STATUS: QueueHandler = QueueHandler {
+    exchange_name: "status_exchange",
+    queue_name: Some("status_queue"),
+    routing_key: Some("worker_status"),
     exchange_type: "direct",
     connection: None,
     channel: None,

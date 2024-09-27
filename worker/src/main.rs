@@ -1,9 +1,10 @@
 use std::{env, error::Error};
 
 use anyhow::Result;
-use queue::job_consumer::JobConsumer;
+use queue::{job_consumer::JobConsumer, status_sender::StatusSender};
 use rabbitmq::*;
-use tracing::info;
+use tokio::time::{interval, Duration};
+use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
 mod handlers;
@@ -34,7 +35,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     data_queue.setup().await?;
     info!("Successfully set up data queue");
 
-    let consumer = JobConsumer::new(data_queue.clone());
+    let mut status_queue = QueueHandler::clone(&CONFIG_QUEUE_STATUS);
+    status_queue.setup().await?;
+    info!("Successfully set up status queue");
+    let status_sender = StatusSender::new(status_queue.clone());
+
+    status_sender
+        .send_lifecycle_status(WorkerStatus::Online)
+        .await?;
+
+    // Spawn the background task to send heartbeat status
+    tokio::spawn(send_heartbeat_status(status_sender.clone()));
+
+    let consumer = JobConsumer::new(data_queue.clone(), status_sender.clone());
     job_queue.subscribe(consumer).await?;
     info!("Successfully started job queue consumer");
 
@@ -46,7 +59,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     job_queue.close().await?;
     data_queue.close().await?;
+    status_sender
+        .send_lifecycle_status(WorkerStatus::Offline)
+        .await?;
+    status_queue.close().await?;
     info!("Worker shut down gracefully");
 
     Ok(())
+}
+
+/// Sends heartbeat status to scheduler every interval
+async fn send_heartbeat_status(status_sender: StatusSender) {
+    let interval_secs: u64 = env::var("HEARTBEAT_INTERVAL_SEC")
+        .unwrap_or_else(|_| "5".to_string())
+        .parse()
+        .expect("Invalid HEARTBEAT_INTERVAL value");
+
+    let mut interval = interval(Duration::from_secs(interval_secs));
+
+    loop {
+        interval.tick().await;
+        if let Err(e) = status_sender.send_heartbeat_status().await {
+            error!("Error sending heartbeat status: {}", e);
+        }
+    }
 }

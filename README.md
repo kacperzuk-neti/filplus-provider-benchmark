@@ -23,6 +23,7 @@ Worker ENV:
 
 - `WORKER_NAME`: Unique identifier of the worker, user to bind to the queue
 - `WORKER_TOPICS`: Comma separated list of topics the worker is interested in (All workers are interested in the `all` topic)
+- `HEARTBEAT_INTERVAL_SEC` (optional): Interval in seconds between sending heartbeats to the scheduler - default: 5
 
 ## Dev Setup
 

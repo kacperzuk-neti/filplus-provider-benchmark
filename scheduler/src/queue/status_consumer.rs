@@ -8,23 +8,22 @@ use amqprs::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rabbitmq::{Message, ResultMessage};
+use rabbitmq::{Message, StatusMessage, WorkerStatusDetails};
 use serde_json;
 use tracing::{debug, error, info};
-use uuid::Uuid;
 
-pub struct DataConsumer {
+pub struct StatusConsumer {
     state: Arc<AppState>,
 }
 
-impl DataConsumer {
+impl StatusConsumer {
     pub fn new(state: Arc<AppState>) -> Self {
         Self { state }
     }
 
-    async fn parse_message(&self, content_str: &str) -> Result<(Uuid, ResultMessage)> {
+    async fn parse_message(&self, content_str: &str) -> Result<StatusMessage> {
         match serde_json::from_str::<Message>(content_str) {
-            Ok(Message::WorkerResult { job_id, result }) => Ok((job_id, result)),
+            Ok(Message::WorkerStatus { status }) => Ok(status),
             Ok(_) => Err(anyhow!("Received unexpected message")),
             Err(e) => {
                 error!("Error parsing message: {:?}", e);
@@ -33,13 +32,34 @@ impl DataConsumer {
         }
     }
 
-    async fn process_message(&self, job_id: Uuid, result_message: ResultMessage) -> Result<()> {
-        info!("Handling message: {:?} {:?}", job_id, result_message);
+    async fn process_message(&self, status_message: StatusMessage) -> Result<()> {
+        info!("Handling message: {:?}", status_message);
 
-        self.state
-            .data_repo
-            .save_data(job_id, result_message)
-            .await?;
+        match status_message.status {
+            WorkerStatusDetails::Lifecycle(status) => {
+                self.state
+                    .worker_repo
+                    .update_worker_status(
+                        status_message.worker_name,
+                        status,
+                        status_message.timestamp,
+                    )
+                    .await?;
+            }
+            WorkerStatusDetails::Job(job_details) => {
+                let job_id = job_details.map(|j| j.job_id);
+                self.state
+                    .worker_repo
+                    .update_worker_job(status_message.worker_name, job_id, status_message.timestamp)
+                    .await?;
+            }
+            WorkerStatusDetails::Heartbeat => {
+                self.state
+                    .worker_repo
+                    .update_worker_heartbeat(status_message.worker_name, status_message.timestamp)
+                    .await?;
+            }
+        }
 
         Ok(())
     }
@@ -49,16 +69,16 @@ impl DataConsumer {
 
         debug!("Received message: {}", content_str);
 
-        let (job_id, result_message) = self.parse_message(&content_str).await?;
+        let status_message = self.parse_message(&content_str).await?;
 
-        self.process_message(job_id, result_message).await?;
+        self.process_message(status_message).await?;
 
         Ok(())
     }
 }
 
 #[async_trait]
-impl AsyncConsumer for DataConsumer {
+impl AsyncConsumer for StatusConsumer {
     async fn consume(
         &mut self,
         channel: &Channel,

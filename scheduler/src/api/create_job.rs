@@ -100,7 +100,7 @@ async fn get_file_range_for_file(url: &str) -> Result<(u64, u64), ApiResponse<()
         .head(url)
         .send()
         .await
-        .map_err(|e| bad_request(format!("Failed to publish job message {}", e)))?;
+        .map_err(|e| bad_request(format!("Failed to execute HEAD request {}", e)))?;
 
     debug!("Response: {:?}", response);
 
