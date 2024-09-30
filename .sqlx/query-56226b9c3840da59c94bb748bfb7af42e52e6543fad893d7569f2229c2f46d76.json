@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT \n                jobs.id as id, \n                jobs.url, \n                jobs.routing_key, \n                jobs.details, \n                bms_data.id as bms_id, \n                bms_data.job_id as bms_job_id, \n                bms_data.worker_name,\n                bms_data.download,\n                bms_data.ping,\n                bms_data.head\n            FROM jobs \n            LEFT JOIN bms_data ON jobs.id = bms_data.job_id\n            WHERE jobs.id = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "routing_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "details",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 4,
+        "name": "bms_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 5,
+        "name": "bms_job_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 6,
+        "name": "worker_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "download",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 8,
+        "name": "ping",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 9,
+        "name": "head",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "56226b9c3840da59c94bb748bfb7af42e52e6543fad893d7569f2229c2f46d76"
+}
