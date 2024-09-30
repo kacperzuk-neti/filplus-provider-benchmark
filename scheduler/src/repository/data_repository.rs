@@ -47,16 +47,4 @@ impl DataRepository {
 
         Ok(())
     }
-
-    pub async fn get_data_by_job_id(&self, job_id: Uuid) -> Result<Vec<BmsData>, sqlx::Error> {
-        let rows = sqlx::query_as!(
-            BmsData,
-            "SELECT id, worker_name, download, ping, head FROM bms_data WHERE job_id = $1",
-            job_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(rows)
-    }
 }
