@@ -1,4 +1,4 @@
-use crate::handlers::*;
+use crate::{handlers::*, GLOBAL_WORKER_NAME};
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
@@ -6,7 +6,7 @@ use amqprs::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage};
+use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage, WorkerStatusJobDetails};
 use serde_json;
 use tracing::{debug, error, info};
 use uuid::Uuid;
@@ -44,8 +44,16 @@ impl JobConsumer {
     ) -> Result<ResultMessage> {
         info!("Handling message: {:?} {:?}", job_id, job_message);
 
+        let run_id = Uuid::new_v4();
+
+        let job_details = WorkerStatusJobDetails {
+            run_id,
+            job_id,
+            worker_name: (*GLOBAL_WORKER_NAME).clone(),
+        };
+
         self.status_sender
-            .send_job_status(Some(job_id))
+            .send_job_status(Some(job_details))
             .await
             .inspect_err(|e| error!("Error sending job status for job_id: {}, e: {}", job_id, e))
             .ok();
@@ -68,6 +76,8 @@ impl JobConsumer {
             .ok();
 
         Ok(ResultMessage::new(
+            run_id,
+            (*GLOBAL_WORKER_NAME).clone(),
             download_result,
             ping_result,
             latency_result,

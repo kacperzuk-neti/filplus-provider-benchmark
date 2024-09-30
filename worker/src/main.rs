@@ -1,6 +1,7 @@
 use std::{env, error::Error};
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use queue::{job_consumer::JobConsumer, status_sender::StatusSender};
 use rabbitmq::*;
 use tokio::time::{interval, Duration};
@@ -9,6 +10,10 @@ use tracing_subscriber::EnvFilter;
 
 mod handlers;
 mod queue;
+
+// global worker name, initialized once on first access
+pub static GLOBAL_WORKER_NAME: Lazy<String> =
+    Lazy::new(|| env::var("WORKER_NAME").expect("WORKER_NAME not set"));
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -25,7 +30,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         )
         .init();
 
-    info!("Worker started");
+    info!("Worker started {}", *GLOBAL_WORKER_NAME);
 
     let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
     job_queue.setup().await?;

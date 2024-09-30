@@ -32,8 +32,10 @@ impl StatusConsumer {
         }
     }
 
+    #[tracing::instrument(skip(self, status_message), fields(worker_name = %status_message.worker_name))]
     async fn process_message(&self, status_message: StatusMessage) -> Result<()> {
-        info!("Handling message: {:?}", status_message);
+        info!("Handling status message");
+        debug!("Handling status message: {:?}", status_message);
 
         match status_message.status {
             WorkerStatusDetails::Lifecycle(status) => {
@@ -88,7 +90,7 @@ impl AsyncConsumer for StatusConsumer {
     ) {
         match self.run(content).await {
             Ok(_) => {
-                info!("Processed message successfully");
+                debug!("Processed message successfully");
                 // Ack message only if processed successfully
                 let args = BasicAckArguments::new(deliver.delivery_tag(), false);
                 channel.basic_ack(args).await.unwrap();
