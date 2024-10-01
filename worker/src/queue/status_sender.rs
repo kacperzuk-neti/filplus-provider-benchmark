@@ -5,7 +5,6 @@ use rabbitmq::{
     Message, QueueHandler, StatusMessage, WorkerStatus, WorkerStatusDetails,
     WorkerStatusJobDetails, CONFIG_QUEUE_STATUS,
 };
-use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct StatusSender {
@@ -36,10 +35,8 @@ impl StatusSender {
 
     pub async fn send_job_status(
         &self,
-        job_id: Option<Uuid>,
+        job_details: Option<WorkerStatusJobDetails>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let job_details = job_id.map(|job_id| WorkerStatusJobDetails { job_id });
-
         let message = Message::WorkerStatus {
             status: StatusMessage {
                 status: WorkerStatusDetails::Job(job_details),

@@ -11,6 +11,7 @@ pub struct DataRepository {
 #[derive(Debug, Serialize)]
 pub struct BmsData {
     pub id: Uuid,
+    pub worker_name: Option<String>,
     pub download: serde_json::Value,
     pub ping: serde_json::Value,
     pub head: serde_json::Value,
@@ -33,8 +34,10 @@ impl DataRepository {
 
     pub async fn save_data(&self, job_id: Uuid, result: ResultMessage) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO bms_data (job_id, download, ping, head) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO bms_data (id, job_id, worker_name, download, ping, head) VALUES ($1, $2, $3, $4, $5, $6)",
+            result.run_id,
             job_id,
+            result.worker_name,
             self.result_to_json(result.download_result),
             self.result_to_json(result.ping_result),
             self.result_to_json(result.head_result)
@@ -43,17 +46,5 @@ impl DataRepository {
         .await?;
 
         Ok(())
-    }
-
-    pub async fn get_data_by_job_id(&self, job_id: Uuid) -> Result<Vec<BmsData>, sqlx::Error> {
-        let rows = sqlx::query_as!(
-            BmsData,
-            "SELECT id, download, ping, head FROM bms_data WHERE job_id = $1",
-            job_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
-
-        Ok(rows)
     }
 }

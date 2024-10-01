@@ -67,9 +67,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize repositories
     let data_repo = Arc::new(DataRepository::new(pool.clone()));
     let worker_repo = Arc::new(WorkerRepository::new(pool.clone()));
+    let job_repo = Arc::new(repository::job_repository::JobRepository::new(pool.clone()));
 
     // Initialize app state
-    let app_state = Arc::new(AppState::new(job_queue.clone(), data_repo, worker_repo));
+    let app_state = Arc::new(AppState::new(
+        job_queue.clone(),
+        data_repo,
+        worker_repo,
+        job_repo,
+    ));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);
     data_queue.setup().await?;

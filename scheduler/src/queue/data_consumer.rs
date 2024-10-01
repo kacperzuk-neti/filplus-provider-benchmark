@@ -33,8 +33,10 @@ impl DataConsumer {
         }
     }
 
+    #[tracing::instrument(skip(self, result_message), fields(worker_name = %result_message.worker_name))]
     async fn process_message(&self, job_id: Uuid, result_message: ResultMessage) -> Result<()> {
-        info!("Handling message: {:?} {:?}", job_id, result_message);
+        info!("Handling data message");
+        debug!("Handling data message: {:?} {:?}", job_id, result_message);
 
         self.state
             .data_repo

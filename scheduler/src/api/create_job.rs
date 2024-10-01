@@ -3,12 +3,14 @@ use axum::{
     extract::{Json, State},
 };
 use axum_extra::extract::WithRejection;
+use chrono::Utc;
 use rabbitmq::{JobMessage, Message};
 use rand::Rng;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use tracing::{debug, info};
 use url::Url;
 use uuid::Uuid;
@@ -40,21 +42,33 @@ pub async fn handle(
     let (start_range, end_range) = get_file_range_for_file(url.as_ref()).await?;
 
     let job_id = Uuid::new_v4();
-    let now_plus = SystemTime::now() + Duration::new(5, 0);
-    let start_timestamp = now_plus
-        .duration_since(UNIX_EPOCH)
-        .map_err(|_| internal_server_error("Failed to calculate start time"))?;
+    let start_time = Utc::now() + Duration::from_secs(5);
 
     debug!(
-        "Job ID: {}, URL: {}, Start Timestamp: {:?}",
-        job_id, url, start_timestamp
+        "Job ID: {}, URL: {}, Start Time: {:?}",
+        job_id, url, start_time
     );
+
+    state
+        .job_repo
+        .create_job(
+            job_id,
+            url.to_string(),
+            &payload.routing_key,
+            json!({
+                "start_time": start_time,
+                "start_range": start_range,
+                "end_range": end_range,
+            }),
+        )
+        .await
+        .map_err(|_| internal_server_error("Failed to create job"))?;
 
     let job_message = Message::WorkerJob {
         job_id,
         payload: JobMessage {
             url: url.to_string(),
-            start_timestamp,
+            start_time,
             start_range,
             end_range,
         },
@@ -116,10 +130,14 @@ async fn get_file_range_for_file(url: &str) -> Result<(u64, u64), ApiResponse<()
 
     debug!("Content-Length: {:?}", content_length);
 
-    let size = 100 * 1024 * 1024; // 100 MB
+    let size_mb = 100; // 100 MB
+    let size = size_mb * 1024 * 1024;
 
     if content_length < size {
-        return Err(bad_request("File size is less than 100MB"));
+        return Err(bad_request(format!(
+            "File size is less than {} MB",
+            size_mb
+        )));
     }
 
     let mut rng = rand::thread_rng();
