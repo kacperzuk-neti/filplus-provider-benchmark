@@ -8,7 +8,7 @@ use amqprs::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use rabbitmq::{Message, StatusMessage, WorkerStatusDetails};
+use rabbitmq::{Message, StatusMessage, WorkerStatus, WorkerStatusDetails};
 use serde_json;
 use tracing::{debug, error, info};
 
@@ -42,11 +42,27 @@ impl StatusConsumer {
                 self.state
                     .worker_repo
                     .update_worker_status(
-                        status_message.worker_name,
-                        status,
+                        &status_message.worker_name,
+                        &status.worker_status,
                         status_message.timestamp,
                     )
                     .await?;
+
+                // Create or remove worker topics based on worker status
+                match status.worker_status {
+                    WorkerStatus::Online => {
+                        self.state
+                            .topic_repo
+                            .upsert_worker_topics(&status_message.worker_name, status.worker_topics)
+                            .await?
+                    }
+                    WorkerStatus::Offline => {
+                        self.state
+                            .topic_repo
+                            .remove_worker_topics(&status_message.worker_name)
+                            .await?
+                    }
+                }
             }
             WorkerStatusDetails::Job(job_details) => {
                 let job_id = job_details.map(|j| j.job_id);
