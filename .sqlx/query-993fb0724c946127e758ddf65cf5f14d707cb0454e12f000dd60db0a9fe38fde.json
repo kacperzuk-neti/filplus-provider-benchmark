@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO worker_topics (worker_name, topic_id)\n            SELECT $1, id FROM (\n                SELECT id FROM topics WHERE name = ANY($2::text[])\n            ) AS topic_ids\n            ON CONFLICT (worker_name, topic_id)\n            DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "TextArray"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "993fb0724c946127e758ddf65cf5f14d707cb0454e12f000dd60db0a9fe38fde"
+}
