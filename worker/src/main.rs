@@ -1,19 +1,16 @@
-use std::{env, error::Error};
+use std::error::Error;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
+use config::CONFIG;
 use queue::{job_consumer::JobConsumer, status_sender::StatusSender};
 use rabbitmq::*;
 use tokio::time::{interval, Duration};
 use tracing::{error, info};
 use tracing_subscriber::EnvFilter;
 
+mod config;
 mod handlers;
 mod queue;
-
-// global worker name, initialized once on first access
-pub static GLOBAL_WORKER_NAME: Lazy<String> =
-    Lazy::new(|| env::var("WORKER_NAME").expect("WORKER_NAME not set"));
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -23,14 +20,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .ok();
 
     // Initialize logging
-    let log_level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level)),
+            EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(CONFIG.log_level.clone())),
         )
         .init();
 
-    info!("Worker started {}", *GLOBAL_WORKER_NAME);
+    info!(
+        "Worker started, name: {} topics: {:?}",
+        CONFIG.worker_name.to_string(),
+        CONFIG.worker_topics,
+    );
 
     let mut job_queue = QueueHandler::clone(&CONFIG_QUEUE_JOB);
     job_queue.setup().await?;
@@ -75,10 +75,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 /// Sends heartbeat status to scheduler every interval
 async fn send_heartbeat_status(status_sender: StatusSender) {
-    let interval_secs: u64 = env::var("HEARTBEAT_INTERVAL_SEC")
-        .unwrap_or_else(|_| "5".to_string())
-        .parse()
-        .expect("Invalid HEARTBEAT_INTERVAL value");
+    let interval_secs: u64 = CONFIG.heartbeat_interval_sec;
 
     let mut interval = interval(Duration::from_secs(interval_secs));
 

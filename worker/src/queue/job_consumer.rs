@@ -1,4 +1,4 @@
-use crate::{handlers::*, GLOBAL_WORKER_NAME};
+use crate::{handlers::*, CONFIG};
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
@@ -49,7 +49,7 @@ impl JobConsumer {
         let job_details = WorkerStatusJobDetails {
             run_id,
             job_id,
-            worker_name: (*GLOBAL_WORKER_NAME).clone(),
+            worker_name: CONFIG.worker_name.to_string(),
         };
 
         self.status_sender
@@ -77,7 +77,7 @@ impl JobConsumer {
 
         Ok(ResultMessage::new(
             run_id,
-            (*GLOBAL_WORKER_NAME).clone(),
+            CONFIG.worker_name.to_string(),
             download_result,
             ping_result,
             latency_result,
