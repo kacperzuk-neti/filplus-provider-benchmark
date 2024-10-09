@@ -48,7 +48,6 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
         }
     }
 
-
     // Calculate min, max, and average latencies
     let min_latency = latencies.iter().cloned().fold(f64::INFINITY, f64::min);
     let max_latency = latencies.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
