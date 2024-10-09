@@ -81,4 +81,4 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file: "./Dockerfile-worker-aws"
           build-args: |
-            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ERC_WORKER_REPOSITORY }}@${{ steps.base-build-image.outputs.digest }}
+            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ECR_REPOSITORY }}@${{ steps.base-build-image.outputs.digest }}
