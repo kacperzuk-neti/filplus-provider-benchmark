@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO bms_data (id, job_id, worker_name, download, ping, head) VALUES ($1, $2, $3, $4, $5, $6)",
+  "query": "INSERT INTO worker_data (id, job_id, worker_name, download, ping, head) VALUES ($1, $2, $3, $4, $5, $6)",
   "describe": {
     "columns": [],
     "parameters": {
@@ -15,5 +15,5 @@
     },
     "nullable": []
   },
-  "hash": "8c925535a7b17a4f82dd38720a53a99295568089b0a30ec62231e9082a213de2"
+  "hash": "b31ac1b55bbfd5c8d8a5b9982572375272f0e31438acfbbd958fd1b30e6b7987"
 }
