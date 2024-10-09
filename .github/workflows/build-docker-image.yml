@@ -10,6 +10,7 @@ on:
 
 env:
   ECR_REPOSITORY: "filplus-provider-benchmark"
+  ERC_WORKER_REPOSITORY: "filplus-provider-benchmark-worker"
 
 jobs:
   build_and_push:
@@ -58,14 +59,26 @@ jobs:
           cache-to: type=gha,mode=max
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push AWS Worker Docker image
+      - name: Docker worker meta
+        id: bms-worker-meta
+        uses: docker/metadata-action@v5
+        with:
+          flavor: latest=false
+          images: public.ecr.aws/f4h6r4m9/${{ env.ERC_WORKER_REPOSITORY }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ inputs.version }},enable=${{inputs.version != ''}}
+            type=ref,event=branch,pattern={{branch}}
+            type=ref,event=pr,pattern={{branch}}
+
+      - name: Build tag and push AWS Worker Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
+          tags: ${{ steps.bms-worker-meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           github-token: ${{ secrets.GITHUB_TOKEN }}
           file: "./Dockerfile-worker-aws"
           build-args: |
-            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ECR_REPOSITORY }}@sha256:${{ steps.base-build-image.outputs.digest }}
+            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ERC_WORKER_REPOSITORY }}@sha256:${{ steps.base-build-image.outputs.digest }}
