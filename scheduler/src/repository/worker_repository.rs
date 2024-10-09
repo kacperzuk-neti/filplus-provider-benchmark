@@ -15,8 +15,8 @@ impl WorkerRepository {
 
     pub async fn update_worker_status(
         &self,
-        worker_name: String,
-        status: WorkerStatus,
+        worker_name: &String,
+        status: &WorkerStatus,
         timestamp: DateTime<Utc>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(

@@ -5,8 +5,7 @@ use color_eyre::Result;
 use queue::data_consumer::DataConsumer;
 use queue::status_consumer::StatusConsumer;
 use rabbitmq::*;
-use repository::data_repository::DataRepository;
-use repository::worker_repository::WorkerRepository;
+use repository::*;
 use sqlx::{migrate::Migrator, PgPool};
 use state::AppState;
 use tokio::net::TcpListener;
@@ -67,7 +66,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Initialize repositories
     let data_repo = Arc::new(DataRepository::new(pool.clone()));
     let worker_repo = Arc::new(WorkerRepository::new(pool.clone()));
-    let job_repo = Arc::new(repository::job_repository::JobRepository::new(pool.clone()));
+    let job_repo = Arc::new(JobRepository::new(pool.clone()));
+    let topic_repo = Arc::new(TopicRepository::new(pool.clone()));
 
     // Initialize app state
     let app_state = Arc::new(AppState::new(
@@ -75,6 +75,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         data_repo,
         worker_repo,
         job_repo,
+        topic_repo,
     ));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);

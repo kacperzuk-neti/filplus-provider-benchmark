@@ -1,10 +1,10 @@
-use std::env;
-
 use chrono::Utc;
 use rabbitmq::{
-    Message, QueueHandler, StatusMessage, WorkerStatus, WorkerStatusDetails,
+    Message, QueueHandler, StatusMessage, WorkerDetails, WorkerStatus, WorkerStatusDetails,
     WorkerStatusJobDetails, CONFIG_QUEUE_STATUS,
 };
+
+use crate::CONFIG;
 
 #[derive(Clone)]
 pub struct StatusSender {
@@ -22,9 +22,12 @@ impl StatusSender {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let message = Message::WorkerStatus {
             status: StatusMessage {
-                status: WorkerStatusDetails::Lifecycle(status),
+                status: WorkerStatusDetails::Lifecycle(WorkerDetails {
+                    worker_topics: CONFIG.worker_topics.clone(),
+                    worker_status: status,
+                }),
                 timestamp: Utc::now(),
-                worker_name: env::var("WORKER_NAME").unwrap(),
+                worker_name: CONFIG.worker_name.to_string(),
             },
         };
 
@@ -41,7 +44,7 @@ impl StatusSender {
             status: StatusMessage {
                 status: WorkerStatusDetails::Job(job_details),
                 timestamp: Utc::now(),
-                worker_name: env::var("WORKER_NAME").unwrap(),
+                worker_name: CONFIG.worker_name.to_string(),
             },
         };
 
@@ -55,7 +58,7 @@ impl StatusSender {
             status: StatusMessage {
                 status: WorkerStatusDetails::Heartbeat,
                 timestamp: Utc::now(),
-                worker_name: env::var("WORKER_NAME").unwrap(),
+                worker_name: CONFIG.worker_name.to_string(),
             },
         };
 

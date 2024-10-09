@@ -92,11 +92,16 @@ pub struct WorkerStatusJobDetails {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum WorkerStatusDetails {
-    Lifecycle(WorkerStatus),
+    Lifecycle(WorkerDetails),
     Job(Option<WorkerStatusJobDetails>),
     Heartbeat,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct WorkerDetails {
+    pub worker_topics: Vec<String>,
+    pub worker_status: WorkerStatus,
+}
 #[derive(Serialize, Deserialize, Debug)]
 pub enum WorkerStatus {
     Online,

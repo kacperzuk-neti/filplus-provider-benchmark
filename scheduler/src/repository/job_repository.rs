@@ -1,6 +1,8 @@
 use serde::Serialize;
-use serde_json::json;
-use sqlx::PgPool;
+use sqlx::{
+    prelude::{FromRow, Type},
+    PgPool,
+};
 use uuid::Uuid;
 
 use super::data_repository::BmsData;
@@ -10,7 +12,7 @@ pub struct JobRepository {
     pool: PgPool,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, FromRow, Type)]
 pub struct JobWithData {
     pub id: Uuid,
     pub url: Option<String>,
@@ -48,53 +50,35 @@ impl JobRepository {
     }
 
     pub async fn get_job_by_id_with_data(&self, job_id: Uuid) -> Result<JobWithData, sqlx::Error> {
-        let rows = sqlx::query!(
+        let job = sqlx::query_as!(
+            JobWithData,
             r#"
-            SELECT 
-                jobs.id as id, 
-                jobs.url, 
-                jobs.routing_key, 
-                jobs.details, 
-                bms_data.id as bms_id, 
-                bms_data.job_id as bms_job_id, 
-                bms_data.worker_name,
-                bms_data.download,
-                bms_data.ping,
-                bms_data.head
-            FROM jobs 
-            LEFT JOIN bms_data ON jobs.id = bms_data.job_id
+            SELECT
+                jobs.id,
+                jobs.url,
+                jobs.routing_key,
+                jobs.details,
+                COALESCE(
+                    ARRAY_AGG(
+                        JSON_BUILD_OBJECT(
+                            'id', d.id,
+                            'worker_name', d.worker_name,
+                            'download', d.download,
+                            'ping', d.ping,
+                            'head', d.head
+                        )
+                    ) FILTER (WHERE d.id IS NOT NULL),
+                    ARRAY[]::json[]
+                ) AS "data!: Vec<BmsData>"
+            FROM jobs
+            LEFT JOIN bms_data as d ON jobs.id = d.job_id
             WHERE jobs.id = $1
+            GROUP BY jobs.id
             "#,
             job_id
         )
-        .fetch_all(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
-
-        if rows.is_empty() {
-            return Err(sqlx::Error::RowNotFound);
-        }
-
-        let mut job = JobWithData {
-            id: rows[0].id,
-            url: rows[0].url.clone(),
-            routing_key: rows[0].routing_key.clone(),
-            details: rows[0].details.clone(),
-            data: Vec::new(),
-        };
-
-        let no_data = json!({"error": "no data"});
-
-        // Collect bms_data rows
-        for row in rows {
-            let bms = BmsData {
-                id: row.bms_id,
-                worker_name: row.worker_name.clone(),
-                download: row.download.unwrap_or(no_data.clone()),
-                ping: row.ping.unwrap_or(no_data.clone()),
-                head: row.head.unwrap_or(no_data.clone()),
-            };
-            job.data.push(bms);
-        }
 
         Ok(job)
     }

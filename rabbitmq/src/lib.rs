@@ -19,7 +19,7 @@ mod messages;
 // re export messages
 pub use messages::{
     AccumulatingBytes, DownloadError, DownloadResult, HeadError, HeadResult, IntervalBytes,
-    JobMessage, PingError, PingResult, ResultMessage, StatusMessage, WorkerStatus,
+    JobMessage, PingError, PingResult, ResultMessage, StatusMessage, WorkerDetails, WorkerStatus,
     WorkerStatusDetails, WorkerStatusJobDetails,
 };
 
