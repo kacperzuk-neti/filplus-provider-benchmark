@@ -28,7 +28,7 @@ impl Config {
         }
 
         Ok(Self {
-            worker_name: env::var("WORKER_NAME").expect("WROKER_NAME is not set"),
+            worker_name: env::var("WORKER_NAME").expect("WORKER_NAME is not set"),
             worker_topics,
             heartbeat_interval_sec: env::var("HEARTBEAT_INTERVAL_SEC")
                 .unwrap_or_else(|_| "5".to_string())
