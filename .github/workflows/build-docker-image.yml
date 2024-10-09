@@ -56,3 +56,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          build-args: |
+            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ECR_REPOSITORY }}@sha256:${{ github.sha }}

@@ -24,3 +24,5 @@ COPY --from=build /app/target/release/worker /usr/local/bin/
 
 RUN adduser --system --group --no-create-home bmsuser
 USER bmsuser
+
+CMD ["scheduler"],
