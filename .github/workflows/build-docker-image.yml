@@ -48,6 +48,7 @@ jobs:
             type=ref,event=pr,pattern={{branch}}
 
       - name: Build tag and push Docker image
+        id: base-build-image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -56,5 +57,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push AWS Worker Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          file: "./Dockerfile-worker-aws"
           build-args: |
-            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ECR_REPOSITORY }}@sha256:${{ github.sha }}
+            BASE_IMAGE=public.ecr.aws/f4h6r4m9/${{ env.ECR_REPOSITORY }}@sha256:${{ steps.base-build-image.outputs.digest }}
