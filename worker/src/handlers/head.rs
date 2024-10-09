@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{Duration, Utc};
 use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;
 use tokio::time::Instant;
@@ -12,6 +13,9 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
     let client = Client::new();
     let num_requests = 10; // Number of times to send the HEAD request
     let mut latencies: Vec<f64> = Vec::with_capacity(num_requests);
+
+    // Calculate deadline
+    let loop_deadline = payload.start_time - Duration::seconds(2);
 
     for _ in 0..num_requests {
         let start_time = Instant::now(); // Start timing
@@ -36,7 +40,14 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
             response.status(),
             latency_ms
         );
+
+        // Check deadline
+        if Utc::now() >= loop_deadline {
+            info!("Loop deadline reached, aborting the loop");
+            break;
+        }
     }
+
 
     // Calculate min, max, and average latencies
     let min_latency = latencies.iter().cloned().fold(f64::INFINITY, f64::min);
