@@ -57,7 +57,7 @@ impl JobConsumer {
             return Ok(ResultMessage::aborted(
                 run_id,
                 CONFIG.worker_name.to_string(),
-                "Start time is in the future".to_string(),
+                "Start time is in the past".to_string(),
             ));
         }
 
