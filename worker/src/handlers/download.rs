@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use chrono::{DateTime, Duration, Utc};
 use rabbitmq::{AccumulatingBytes, DownloadError, DownloadResult, IntervalBytes, JobMessage};
 use reqwest::{
@@ -6,7 +6,7 @@ use reqwest::{
     Client,
 };
 use tokio::time::sleep;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 // Download deadline, job will succeed but won't work/download more than this duration
@@ -33,23 +33,27 @@ fn calculate_next_even_second(current: DateTime<Utc>) -> DateTime<Utc> {
 }
 
 /// Sleep until the start time of the job
-async fn wait_for_start_time(payload: &JobMessage) -> Result<(), anyhow::Error> {
+async fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
     let now = Utc::now();
 
-    if payload.start_time > now {
-        let sleep_duration = payload.start_time - now;
-        debug!("Sleeping for {:?}", sleep_duration);
-
-        sleep(sleep_duration.to_std()?).await;
-
-        debug!("Woke up after sleeping");
-    } else {
-        return Err(anyhow!(
+    if payload.start_time < now {
+        error!(
+            "Start time is in the past, now: {}, start_time: {}",
+            now, payload.start_time
+        );
+        bail!(
             "Start time is in the past, now: {}, start_time: {}",
             now,
             payload.start_time
-        ));
+        );
     }
+
+    let sleep_duration = payload.start_time - now;
+    debug!("Sleeping for {:?}", sleep_duration);
+
+    sleep(sleep_duration.to_std()?).await;
+
+    debug!("Woke up after sleeping");
 
     Ok(())
 }
