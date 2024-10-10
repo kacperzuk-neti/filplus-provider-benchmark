@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::{
     debug_handler,
     extract::{Json, State},
@@ -42,7 +43,7 @@ pub async fn handle(
     let (start_range, end_range) = get_file_range_for_file(url.as_ref()).await?;
 
     let job_id = Uuid::new_v4();
-    let start_time = Utc::now() + Duration::from_secs(5);
+    let start_time = Utc::now() + Duration::from_secs(10);
 
     debug!(
         "Job ID: {}, URL: {}, Start Time: {:?}",

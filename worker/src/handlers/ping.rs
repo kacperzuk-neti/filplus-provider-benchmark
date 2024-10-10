@@ -1,6 +1,7 @@
 use std::net::{IpAddr, ToSocketAddrs};
 
 use anyhow::Result;
+use chrono::{Duration, Utc};
 use rabbitmq::{JobMessage, PingError, PingResult};
 use rand::random;
 use surge_ping::{Client, Config, PingIdentifier, PingSequence, ICMP};
@@ -11,6 +12,9 @@ use uuid::Uuid;
 #[tracing::instrument(skip(payload))]
 pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, PingError> {
     info!("Processing PING job");
+
+    // Calculate deadline
+    let loop_deadline = payload.start_time - Duration::seconds(2);
 
     // Parse the URL and extract the host
     let url = Url::parse(&payload.url).map_err(|e| PingError {
@@ -56,6 +60,12 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, Pi
             }
         };
         latencies.push(duration.as_secs_f64());
+
+        // Check deadline
+        if Utc::now() >= loop_deadline {
+            info!("Loop deadline reached, aborting the loop");
+            break;
+        }
     }
 
     // Check if we have at least half of the packets

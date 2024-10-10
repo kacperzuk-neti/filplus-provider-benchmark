@@ -71,7 +71,7 @@ impl JobRepository {
                     ARRAY[]::json[]
                 ) AS "data!: Vec<BmsData>"
             FROM jobs
-            LEFT JOIN bms_data as d ON jobs.id = d.job_id
+            LEFT JOIN worker_data as d ON jobs.id = d.job_id
             WHERE jobs.id = $1
             GROUP BY jobs.id
             "#,
