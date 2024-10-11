@@ -52,6 +52,12 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, Pi
     let packets_threshold = seq_max / 2;
 
     for seq in 0..seq_max {
+        // Check deadline
+        if Utc::now() >= loop_deadline {
+            info!("Loop deadline reached, aborting the loop");
+            break;
+        }
+
         let (_, duration) = match pinger.ping(PingSequence(seq), &[6, 6, 6]).await {
             Ok((packet, duration)) => (packet, duration),
             Err(e) => {
@@ -60,12 +66,6 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, Pi
             }
         };
         latencies.push(duration.as_secs_f64());
-
-        // Check deadline
-        if Utc::now() >= loop_deadline {
-            info!("Loop deadline reached, aborting the loop");
-            break;
-        }
     }
 
     // Check if we have at least half of the packets

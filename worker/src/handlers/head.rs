@@ -18,6 +18,12 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
     let loop_deadline = payload.start_time - Duration::seconds(2);
 
     for _ in 0..num_requests {
+        // Check deadline
+        if Utc::now() >= loop_deadline {
+            info!("Loop deadline reached, aborting the loop");
+            break;
+        }
+
         let start_time = Instant::now(); // Start timing
 
         // Send a HEAD request to the URL
@@ -40,12 +46,6 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
             response.status(),
             latency_ms
         );
-
-        // Check deadline
-        if Utc::now() >= loop_deadline {
-            info!("Loop deadline reached, aborting the loop");
-            break;
-        }
     }
 
     // Calculate min, max, and average latencies
