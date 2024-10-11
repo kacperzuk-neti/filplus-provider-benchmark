@@ -1,9 +1,6 @@
 use rabbitmq::ResultMessage;
-use serde::Serialize;
-use sqlx::{
-    prelude::{FromRow, Type},
-    PgPool,
-};
+use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -11,7 +8,7 @@ pub struct DataRepository {
     pool: PgPool,
 }
 
-#[derive(Debug, Serialize, FromRow, Type)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BmsData {
     pub id: Uuid,
     pub worker_name: Option<String>,
@@ -37,10 +34,22 @@ impl DataRepository {
 
     pub async fn save_data(&self, job_id: Uuid, result: ResultMessage) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO bms_data (id, job_id, worker_name, download, ping, head) VALUES ($1, $2, $3, $4, $5, $6)",
+            r#"
+            INSERT INTO worker_data (
+                id, 
+                job_id, 
+                worker_name, 
+                is_success, 
+                download, 
+                ping, 
+                head
+            ) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
             result.run_id,
             job_id,
             result.worker_name,
+            result.is_success,
             self.result_to_json(result.download_result),
             self.result_to_json(result.ping_result),
             self.result_to_json(result.head_result)

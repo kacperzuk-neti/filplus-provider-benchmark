@@ -6,6 +6,7 @@ use amqprs::{
 };
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use chrono::Utc;
 use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage, WorkerStatusJobDetails};
 use serde_json;
 use tracing::{debug, error, info};
@@ -52,6 +53,18 @@ impl JobConsumer {
             worker_name: CONFIG.worker_name.to_string(),
         };
 
+        if job_message.start_time < Utc::now() {
+            error!(
+                "Start time is in the past, start_time: {}",
+                job_message.start_time
+            );
+            return Ok(ResultMessage::aborted(
+                run_id,
+                CONFIG.worker_name.to_string(),
+                "Start time is in the past".to_string(),
+            ));
+        }
+
         self.status_sender
             .send_job_status(Some(job_details))
             .await
@@ -78,6 +91,8 @@ impl JobConsumer {
         Ok(ResultMessage::new(
             run_id,
             CONFIG.worker_name.to_string(),
+            // download result is the most important one and determines the success of the job (at least for now)
+            download_result.is_ok(),
             download_result,
             ping_result,
             latency_result,

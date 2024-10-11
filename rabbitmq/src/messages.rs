@@ -14,6 +14,7 @@ pub struct JobMessage {
 pub struct ResultMessage {
     pub run_id: Uuid,
     pub worker_name: String,
+    pub is_success: bool,
     pub download_result: Result<DownloadResult, DownloadError>,
     pub ping_result: Result<PingResult, PingError>,
     pub head_result: Result<HeadResult, HeadError>,
@@ -69,6 +70,7 @@ impl ResultMessage {
     pub fn new(
         run_id: Uuid,
         worker_name: String,
+        is_success: bool,
         download_result: Result<DownloadResult, DownloadError>,
         ping_result: Result<PingResult, PingError>,
         head_result: Result<HeadResult, HeadError>,
@@ -79,6 +81,22 @@ impl ResultMessage {
             head_result,
             run_id,
             worker_name,
+            is_success,
+        }
+    }
+
+    pub fn aborted(run_id: Uuid, worker_name: String, error: String) -> Self {
+        Self {
+            run_id,
+            worker_name,
+            is_success: false,
+            download_result: Err(DownloadError {
+                error: error.clone(),
+            }),
+            ping_result: Err(PingError {
+                error: error.clone(),
+            }),
+            head_result: Err(HeadError { error }),
         }
     }
 }
