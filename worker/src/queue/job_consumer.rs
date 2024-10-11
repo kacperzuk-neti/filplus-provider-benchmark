@@ -53,7 +53,11 @@ impl JobConsumer {
             worker_name: CONFIG.worker_name.to_string(),
         };
 
-        if job_message.start_time > Utc::now() {
+        if job_message.start_time < Utc::now() {
+            error!(
+                "Start time is in the past, start_time: {}",
+                job_message.start_time
+            );
             return Ok(ResultMessage::aborted(
                 run_id,
                 CONFIG.worker_name.to_string(),
