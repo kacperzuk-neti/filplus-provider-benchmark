@@ -1,11 +1,12 @@
 use anyhow::{bail, Result};
+use bytes::Bytes;
 use chrono::{DateTime, Duration, Utc};
 use rabbitmq::{AccumulatingBytes, DownloadError, DownloadResult, IntervalBytes, JobMessage};
 use reqwest::{
     header::{ACCEPT, RANGE, USER_AGENT},
-    Client,
+    Client, Response,
 };
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -38,8 +39,8 @@ async fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
 
     if payload.start_time < now {
         error!(
-            "Start time is in the past, now: {}, start_time: {}",
-            now, payload.start_time
+            "Start time is in the past, start_time: {}",
+            payload.start_time
         );
         bail!(
             "Start time is in the past, now: {}, start_time: {}",
@@ -56,6 +57,16 @@ async fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
     debug!("Woke up after sleeping");
 
     Ok(())
+}
+
+async fn download_chunk(response: &mut Response) -> Result<Option<Bytes>, DownloadError> {
+    match timeout(MAX_DOWNLOAD_DURATION.to_std().unwrap(), response.chunk()).await {
+        Ok(Ok(chunk)) => Ok(chunk),
+        Ok(Err(e)) => Err(DownloadError {
+            error: format!("ChunkError: {}", e),
+        }),
+        _ => Ok(None),
+    }
 }
 
 /// Benchmark the download speed of the given URL
@@ -100,9 +111,7 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<DownloadResult
         job_start_time, download_start_time, next_log_time
     );
 
-    while let Some(chunk) = response.chunk().await.map_err(|e| DownloadError {
-        error: format!("ChunkError: {}", e),
-    })? {
+    while let Some(chunk) = download_chunk(&mut response).await? {
         let chunk_size = chunk.len();
         bytes += chunk_size;
         total_bytes += chunk_size;
@@ -138,6 +147,12 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<DownloadResult
                 (next_log_time - current_time).num_milliseconds()
             );
         }
+    }
+
+    if total_bytes == 0 {
+        return Err(DownloadError {
+            error: "Downloaded 0 bytes".to_string(),
+        });
     }
 
     let end_time = Utc::now();
