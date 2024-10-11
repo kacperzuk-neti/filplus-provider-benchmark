@@ -1,9 +1,6 @@
 use rabbitmq::ResultMessage;
-use serde::Serialize;
-use sqlx::{
-    prelude::{FromRow, Type},
-    PgPool,
-};
+use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -11,7 +8,7 @@ pub struct DataRepository {
     pool: PgPool,
 }
 
-#[derive(Debug, Serialize, FromRow, Type)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BmsData {
     pub id: Uuid,
     pub worker_name: Option<String>,

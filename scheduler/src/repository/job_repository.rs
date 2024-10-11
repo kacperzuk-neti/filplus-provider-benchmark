@@ -1,6 +1,7 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{
     prelude::{FromRow, Type},
+    types::Json,
     PgPool,
 };
 use uuid::Uuid;
@@ -18,7 +19,7 @@ pub struct JobWithData {
     pub url: Option<String>,
     pub routing_key: Option<String>,
     pub details: Option<serde_json::Value>,
-    pub data: Vec<BmsData>,
+    pub data: Vec<Json<BmsData>>,
 }
 
 impl JobRepository {
@@ -69,7 +70,7 @@ impl JobRepository {
                         )
                     ) FILTER (WHERE d.id IS NOT NULL),
                     ARRAY[]::json[]
-                ) AS "data!: Vec<BmsData>"
+                ) AS "data!: Vec<Json<BmsData>>"
             FROM jobs
             LEFT JOIN worker_data as d ON jobs.id = d.job_id
             WHERE jobs.id = $1
