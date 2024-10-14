@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::repository::*;
 use rabbitmq::QueueHandler;
 use tokio::sync::Mutex;
+
+use crate::repository::*;
 
 pub struct AppState {
     pub job_queue: Arc<Mutex<QueueHandler>>,
@@ -10,6 +11,7 @@ pub struct AppState {
     pub worker_repo: Arc<WorkerRepository>,
     pub job_repo: Arc<JobRepository>,
     pub topic_repo: Arc<TopicRepository>,
+    pub sub_job_repo: Arc<SubJobRepository>,
 }
 
 impl AppState {
@@ -19,6 +21,7 @@ impl AppState {
         worker_repo: Arc<WorkerRepository>,
         job_repo: Arc<JobRepository>,
         topic_repo: Arc<TopicRepository>,
+        sub_job_repo: Arc<SubJobRepository>,
     ) -> Self {
         AppState {
             job_queue,
@@ -26,6 +29,7 @@ impl AppState {
             worker_repo,
             job_repo,
             topic_repo,
+            sub_job_repo,
         }
     }
 }

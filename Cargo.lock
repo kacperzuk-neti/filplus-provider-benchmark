@@ -3484,6 +3484,7 @@ dependencies = [
  "amqprs",
  "anyhow",
  "async-trait",
+ "bytes",
  "chrono",
  "dotenvy",
  "once_cell",

@@ -37,19 +37,19 @@ fn calculate_next_even_second(current: DateTime<Utc>) -> DateTime<Utc> {
 async fn wait_for_start_time(payload: &JobMessage) -> Result<()> {
     let now = Utc::now();
 
-    if payload.start_time < now {
+    if payload.download_start_time < now {
         error!(
-            "Start time is in the past, start_time: {}",
-            payload.start_time
+            "Start time is in the past, download_start_time: {}",
+            payload.download_start_time
         );
         bail!(
-            "Start time is in the past, now: {}, start_time: {}",
+            "Start time is in the past, now: {}, download_start_time: {}",
             now,
-            payload.start_time
+            payload.download_start_time
         );
     }
 
-    let sleep_duration = payload.start_time - now;
+    let sleep_duration = payload.download_start_time - now;
     debug!("Sleeping for {:?}", sleep_duration);
 
     sleep(sleep_duration.to_std()?).await;

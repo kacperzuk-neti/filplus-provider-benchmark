@@ -1,4 +1,3 @@
-use crate::{handlers::*, CONFIG};
 use amqprs::{
     channel::{BasicAckArguments, Channel},
     consumer::AsyncConsumer,
@@ -9,8 +8,11 @@ use async_trait::async_trait;
 use chrono::Utc;
 use rabbitmq::{JobMessage, Message, QueueHandler, ResultMessage, WorkerStatusJobDetails};
 use serde_json;
+use tokio::time::sleep;
 use tracing::{debug, error, info};
 use uuid::Uuid;
+
+use crate::{handlers::*, CONFIG};
 
 use super::status_sender::StatusSender;
 
@@ -38,18 +40,22 @@ impl JobConsumer {
         }
     }
 
+    #[tracing::instrument(skip(self, job_message), fields(sub_job_id = %job_message.sub_job_id))]
     async fn process_message(
         &self,
         job_id: Uuid,
         job_message: JobMessage,
     ) -> Result<ResultMessage> {
-        info!("Handling message: {:?} {:?}", job_id, job_message);
+        info!("Handling message");
+        debug!("Handling message: {:?} {:?}", job_id, job_message);
 
         let run_id = Uuid::new_v4();
+        let sub_job_id = job_message.sub_job_id;
 
         let job_details = WorkerStatusJobDetails {
             run_id,
             job_id,
+            sub_job_id,
             worker_name: CONFIG.worker_name.to_string(),
         };
 
@@ -60,6 +66,8 @@ impl JobConsumer {
             );
             return Ok(ResultMessage::aborted(
                 run_id,
+                job_id,
+                sub_job_id,
                 CONFIG.worker_name.to_string(),
                 "Start time is in the past".to_string(),
             ));
@@ -71,7 +79,13 @@ impl JobConsumer {
             .inspect_err(|e| error!("Error sending job status for job_id: {}, e: {}", job_id, e))
             .ok();
 
-        let (download_result, ping_result, latency_result) = tokio::join!(
+        let sleep_duration = job_message.start_time - Utc::now();
+        debug!("Sleeping for {:?}", sleep_duration);
+
+        // Delay the execution to sync the time on every worker
+        sleep(sleep_duration.to_std()?).await;
+
+        let (download_result, ping_result, head_result) = tokio::join!(
             download::process(job_id, job_message.clone()),
             ping::process(job_id, job_message.clone()),
             head::process(job_id, job_message.clone()),
@@ -79,7 +93,7 @@ impl JobConsumer {
 
         debug!(
             "Results: {:#?} {:#?} {:#?}",
-            ping_result, latency_result, download_result,
+            ping_result, head_result, download_result,
         );
 
         self.status_sender
@@ -88,15 +102,17 @@ impl JobConsumer {
             .inspect_err(|e| error!("Error sending job status for job_id: {}, e: {}", job_id, e))
             .ok();
 
-        Ok(ResultMessage::new(
+        Ok(ResultMessage {
             run_id,
-            CONFIG.worker_name.to_string(),
+            job_id,
+            sub_job_id,
+            worker_name: CONFIG.worker_name.to_string(),
             // download result is the most important one and determines the success of the job (at least for now)
-            download_result.is_ok(),
+            is_success: download_result.is_ok(),
             download_result,
             ping_result,
-            latency_result,
-        ))
+            head_result,
+        })
     }
 
     pub async fn run(&self, content: Vec<u8>) -> Result<()> {

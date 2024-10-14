@@ -16,8 +16,12 @@ use tracing::{debug, info};
 use url::Url;
 use uuid::Uuid;
 
-use crate::api::api_response::*;
-use crate::state::AppState;
+use crate::{
+    api::api_response::*,
+    job_repository::{Job, JobStatus},
+    state::AppState,
+    sub_job_repository::{SubJob, SubJobStatus, SubJobType},
+};
 
 #[derive(Deserialize)]
 pub struct JobInput {
@@ -28,7 +32,12 @@ pub struct JobInput {
 #[derive(Serialize)]
 pub struct JobResponse {
     pub job_id: Uuid,
+    pub sub_jobs: Vec<Uuid>,
 }
+
+const MAX_DOWNLOAD_DURATION_SECS: u64 = 60;
+const DONWLOAD_DELAY_SECS: u64 = 10;
+const SYNC_DELAY_SECS: u64 = 1;
 
 /// POST /job
 /// Create a new job to be processed by the worker
@@ -37,27 +46,22 @@ pub async fn handle(
     State(state): State<Arc<AppState>>,
     WithRejection(Json(payload), _): WithRejection<Json<JobInput>, ApiResponse<ErrorResponse>>,
 ) -> Result<ApiResponse<JobResponse>, ApiResponse<()>> {
+    // Validation
     let url = validate_url(&payload)?;
     validate_routing_key(&payload)?;
 
+    // Create the job
     let (start_range, end_range) = get_file_range_for_file(url.as_ref()).await?;
-
     let job_id = Uuid::new_v4();
-    let start_time = Utc::now() + Duration::from_secs(10);
 
-    debug!(
-        "Job ID: {}, URL: {}, Start Time: {:?}",
-        job_id, url, start_time
-    );
-
-    state
+    let job = state
         .job_repo
         .create_job(
             job_id,
             url.to_string(),
             &payload.routing_key,
+            JobStatus::Pending,
             json!({
-                "start_time": start_time,
                 "start_range": start_range,
                 "end_range": end_range,
             }),
@@ -65,29 +69,27 @@ pub async fn handle(
         .await
         .map_err(|_| internal_server_error("Failed to create job"))?;
 
-    let job_message = Message::WorkerJob {
-        job_id,
-        payload: JobMessage {
-            url: url.to_string(),
-            start_time,
-            start_range,
-            end_range,
-        },
-    };
+    debug!("Job created successfully: {:?}", job);
 
-    info!("Publishing job message: {:?}", job_message);
+    // Calculate the start time for the sub jobs
+    let start_time = Utc::now() + Duration::from_secs(SYNC_DELAY_SECS);
+    let job_duration = Duration::from_secs(DONWLOAD_DELAY_SECS)
+        + Duration::from_secs(MAX_DOWNLOAD_DURATION_SECS)
+        + Duration::from_secs(SYNC_DELAY_SECS);
+    let delayed_start_time = start_time + job_duration;
 
-    state
-        .job_queue
-        .lock()
-        .await
-        .publish(&job_message, &payload.routing_key)
-        .await
-        .map_err(|_| internal_server_error("Failed to publish job message"))?;
+    // Createa sub jobs and send them to the worker
+    let sub_job_1 = create_and_dispatch_subjob(&state, &job, start_time).await?;
+    let sub_job_2 = create_and_dispatch_subjob(&state, &job, delayed_start_time).await?;
 
-    info!("Job message published successfully");
+    let sub_jobs = vec![sub_job_1.id, sub_job_2.id];
 
-    Ok(ok_response(JobResponse { job_id }))
+    info!(
+        "Job with sub jobs created successfully: {}, sub_jobs: {:?}",
+        job_id, sub_jobs
+    );
+
+    Ok(ok_response(JobResponse { job_id, sub_jobs }))
 }
 
 /// Validate url and its scheme
@@ -146,4 +148,57 @@ async fn get_file_range_for_file(url: &str) -> Result<(u64, u64), ApiResponse<()
     let end_range = start_range + size;
 
     Ok((start_range, end_range))
+}
+
+async fn create_and_dispatch_subjob(
+    state: &Arc<AppState>,
+    job: &Job,
+    start_time: chrono::DateTime<Utc>,
+) -> Result<SubJob, ApiResponse<()>> {
+    let download_start_time = start_time + Duration::from_secs(DONWLOAD_DELAY_SECS);
+
+    let sub_job = state
+        .sub_job_repo
+        .create_sub_job(
+            Uuid::new_v4(),
+            job.id,
+            SubJobStatus::Pending,
+            SubJobType::CombinedDHP,
+            json!({
+                "start_time": start_time,
+                "donwload_start_time": download_start_time,
+                // TODO: optional worker names whitelist
+            }),
+        )
+        .await
+        .map_err(|_| internal_server_error("Failed to create sub job"))?;
+
+    debug!("Sub job created successfully: {:?}", sub_job);
+
+    let job_message = Message::WorkerJob {
+        job_id: job.id,
+        payload: JobMessage {
+            job_id: job.id,
+            sub_job_id: sub_job.id,
+            url: job.url.clone(),
+            start_time,
+            download_start_time,
+            start_range: job.details.start_range,
+            end_range: job.details.end_range,
+        },
+    };
+
+    debug!("Publishing job message: {:?}", job_message);
+
+    state
+        .job_queue
+        .lock()
+        .await
+        .publish(&job_message, &job.routing_key)
+        .await
+        .map_err(|_| internal_server_error("Failed to publish job message"))?;
+
+    debug!("Job message published successfully: {}", sub_job.id);
+
+    Ok(sub_job)
 }

@@ -15,7 +15,9 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
     let mut latencies: Vec<f64> = Vec::with_capacity(num_requests);
 
     // Calculate deadline
-    let loop_deadline = payload.start_time - Duration::seconds(2);
+    let loop_deadline = payload.download_start_time - Duration::seconds(2);
+
+    debug!("now: {} loop_deadline: {}", Utc::now(), loop_deadline);
 
     for _ in 0..num_requests {
         // Check deadline
@@ -46,6 +48,12 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<HeadResult, He
             response.status(),
             latency_ms
         );
+    }
+
+    if latencies.is_empty() {
+        return Err(HeadError {
+            error: "No successful requests".to_string(),
+        });
     }
 
     // Calculate min, max, and average latencies

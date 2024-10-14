@@ -4,8 +4,11 @@ use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct JobMessage {
+    pub job_id: Uuid,
+    pub sub_job_id: Uuid,
     pub url: String,
     pub start_time: DateTime<Utc>,
+    pub download_start_time: DateTime<Utc>,
     pub start_range: u64,
     pub end_range: u64,
 }
@@ -13,6 +16,8 @@ pub struct JobMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ResultMessage {
     pub run_id: Uuid,
+    pub job_id: Uuid,
+    pub sub_job_id: Uuid,
     pub worker_name: String,
     pub is_success: bool,
     pub download_result: Result<DownloadResult, DownloadError>,
@@ -67,27 +72,17 @@ pub struct HeadError {
 }
 
 impl ResultMessage {
-    pub fn new(
+    pub fn aborted(
         run_id: Uuid,
+        job_id: Uuid,
+        sub_job_id: Uuid,
         worker_name: String,
-        is_success: bool,
-        download_result: Result<DownloadResult, DownloadError>,
-        ping_result: Result<PingResult, PingError>,
-        head_result: Result<HeadResult, HeadError>,
+        error: String,
     ) -> Self {
         Self {
-            download_result,
-            ping_result,
-            head_result,
             run_id,
-            worker_name,
-            is_success,
-        }
-    }
-
-    pub fn aborted(run_id: Uuid, worker_name: String, error: String) -> Self {
-        Self {
-            run_id,
+            job_id,
+            sub_job_id,
             worker_name,
             is_success: false,
             download_result: Err(DownloadError {
@@ -105,6 +100,7 @@ impl ResultMessage {
 pub struct WorkerStatusJobDetails {
     pub run_id: Uuid,
     pub job_id: Uuid,
+    pub sub_job_id: Uuid,
     pub worker_name: String,
 }
 

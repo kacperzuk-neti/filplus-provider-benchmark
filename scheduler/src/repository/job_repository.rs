@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{
     prelude::{FromRow, Type},
     types::Json,
@@ -7,6 +7,15 @@ use sqlx::{
 use uuid::Uuid;
 
 use super::data_repository::BmsData;
+
+#[derive(Debug, Type)]
+#[sqlx(type_name = "job_status", rename_all = "lowercase")]
+pub enum JobStatus {
+    Pending,
+    Processing,
+    Completed,
+    Failed,
+}
 
 #[derive(Clone)]
 pub struct JobRepository {
@@ -22,6 +31,27 @@ pub struct JobWithData {
     pub data: Vec<Json<BmsData>>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct JobDetails {
+    pub start_range: u64,
+    pub end_range: u64,
+}
+impl From<serde_json::Value> for JobDetails {
+    fn from(value: serde_json::Value) -> Self {
+        serde_json::from_value(value).expect("Failed to convert serde_json::Value to JobDetails")
+    }
+}
+
+#[derive(Debug, FromRow)]
+#[allow(dead_code)]
+pub struct Job {
+    pub id: Uuid,
+    pub url: String,
+    pub routing_key: String,
+    pub status: JobStatus,
+    pub details: JobDetails,
+}
+
 impl JobRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
@@ -32,22 +62,26 @@ impl JobRepository {
         job_id: Uuid,
         url: String,
         routing_key: &String,
+        status: JobStatus,
         details: serde_json::Value,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+    ) -> Result<Job, sqlx::Error> {
+        let job = sqlx::query_as!(
+            Job,
             r#"
-            INSERT INTO jobs (id, url, routing_key, details)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO jobs (id, url, routing_key, status, details)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, url, routing_key, status as "status!: JobStatus", details as "details!: serde_json::Value"
             "#,
             job_id,
             url,
             routing_key,
+            status as JobStatus,
             details,
         )
-        .execute(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(job)
     }
 
     pub async fn get_job_by_id_with_data(&self, job_id: Uuid) -> Result<JobWithData, sqlx::Error> {
@@ -82,5 +116,24 @@ impl JobRepository {
         .await?;
 
         Ok(job)
+    }
+
+    pub async fn update_job_status(
+        &self,
+        job_id: Uuid,
+        status: JobStatus,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE jobs
+            SET status = $1
+            WHERE id = $2
+            "#,
+            status as JobStatus,
+            job_id,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 }
