@@ -36,7 +36,7 @@ pub struct JobResponse {
 }
 
 const MAX_DOWNLOAD_DURATION_SECS: u64 = 60;
-const DONWLOAD_DELAY_SECS: u64 = 10;
+const DOWNLOAD_DELAY_SECS: u64 = 10;
 const SYNC_DELAY_SECS: u64 = 1;
 
 /// POST /job
@@ -73,7 +73,7 @@ pub async fn handle(
 
     // Calculate the start time for the sub jobs
     let start_time = Utc::now() + Duration::from_secs(SYNC_DELAY_SECS);
-    let job_duration = Duration::from_secs(DONWLOAD_DELAY_SECS)
+    let job_duration = Duration::from_secs(DOWNLOAD_DELAY_SECS)
         + Duration::from_secs(MAX_DOWNLOAD_DURATION_SECS)
         + Duration::from_secs(SYNC_DELAY_SECS);
     let delayed_start_time = start_time + job_duration;
@@ -155,7 +155,7 @@ async fn create_and_dispatch_subjob(
     job: &Job,
     start_time: chrono::DateTime<Utc>,
 ) -> Result<SubJob, ApiResponse<()>> {
-    let download_start_time = start_time + Duration::from_secs(DONWLOAD_DELAY_SECS);
+    let download_start_time = start_time + Duration::from_secs(DOWNLOAD_DELAY_SECS);
 
     let sub_job = state
         .sub_job_repo
