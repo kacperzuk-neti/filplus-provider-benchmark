@@ -1,4 +1,4 @@
-use anyhow::Result;
+use color_eyre::Result;
 use chrono::{Duration, Utc};
 use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;

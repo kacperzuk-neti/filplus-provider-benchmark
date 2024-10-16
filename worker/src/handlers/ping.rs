@@ -1,6 +1,6 @@
 use std::net::{IpAddr, ToSocketAddrs};
 
-use anyhow::Result;
+use color_eyre::Result;
 use chrono::{Duration, Utc};
 use rabbitmq::{JobMessage, PingError, PingResult};
 use rand::random;

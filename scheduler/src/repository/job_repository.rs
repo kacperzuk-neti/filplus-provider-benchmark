@@ -4,6 +4,7 @@ use sqlx::{
     types::Json,
     PgPool,
 };
+use color_eyre::Result;
 use uuid::Uuid;
 
 use super::data_repository::BmsData;

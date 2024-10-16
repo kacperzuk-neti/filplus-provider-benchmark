@@ -1,4 +1,4 @@
-use anyhow::Result;
+use color_eyre::Result;
 use axum::{
     debug_handler,
     extract::{Json, State},
