@@ -1,10 +1,10 @@
+use color_eyre::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::{
     prelude::{FromRow, Type},
     types::Json,
     PgPool,
 };
-use color_eyre::Result;
 use uuid::Uuid;
 
 use super::data_repository::BmsData;

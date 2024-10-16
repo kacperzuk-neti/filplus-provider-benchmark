@@ -1,5 +1,5 @@
-use color_eyre::Result;
 use chrono::{Duration, Utc};
+use color_eyre::Result;
 use rabbitmq::{HeadError, HeadResult, JobMessage};
 use reqwest::Client;
 use tokio::time::Instant;
