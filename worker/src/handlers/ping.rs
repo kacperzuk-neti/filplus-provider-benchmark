@@ -14,7 +14,9 @@ pub async fn process(job_id: Uuid, payload: JobMessage) -> Result<PingResult, Pi
     info!("Processing PING job");
 
     // Calculate deadline
-    let loop_deadline = payload.start_time - Duration::seconds(2);
+    let loop_deadline = payload.download_start_time - Duration::seconds(2);
+
+    debug!("now: {} loop_deadline: {}", Utc::now(), loop_deadline);
 
     // Parse the URL and extract the host
     let url = Url::parse(&payload.url).map_err(|e| PingError {

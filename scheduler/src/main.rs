@@ -68,6 +68,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let worker_repo = Arc::new(WorkerRepository::new(pool.clone()));
     let job_repo = Arc::new(JobRepository::new(pool.clone()));
     let topic_repo = Arc::new(TopicRepository::new(pool.clone()));
+    let sub_job_repo = Arc::new(SubJobRepository::new(pool.clone()));
 
     // Initialize app state
     let app_state = Arc::new(AppState::new(
@@ -76,6 +77,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         worker_repo,
         job_repo,
         topic_repo,
+        sub_job_repo,
     ));
 
     let mut data_queue = QueueHandler::clone(&CONFIG_QUEUE_RESULT);

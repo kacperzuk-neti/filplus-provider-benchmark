@@ -1,0 +1,74 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO jobs (id, url, routing_key, status, details)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id, url, routing_key, status as \"status!: JobStatus\", details as \"details!: serde_json::Value\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "routing_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "status!: JobStatus",
+        "type_info": {
+          "Custom": {
+            "name": "job_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "details!: serde_json::Value",
+        "type_info": "Jsonb"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Varchar",
+        "Varchar",
+        {
+          "Custom": {
+            "name": "job_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "running",
+                "completed",
+                "failed"
+              ]
+            }
+          }
+        },
+        "Jsonb"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e5bb58d2f98a6a27de8df353e6d87eaea3af9b7429b41dc4947d2a7535727682"
+}

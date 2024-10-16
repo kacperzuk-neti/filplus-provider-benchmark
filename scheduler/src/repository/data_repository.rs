@@ -32,22 +32,24 @@ impl DataRepository {
         }
     }
 
-    pub async fn save_data(&self, job_id: Uuid, result: ResultMessage) -> Result<(), sqlx::Error> {
+    pub async fn save_data(&self, result: ResultMessage) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
             INSERT INTO worker_data (
-                id, 
-                job_id, 
-                worker_name, 
-                is_success, 
-                download, 
-                ping, 
+                id,
+                job_id,
+                sub_job_id,
+                worker_name,
+                is_success,
+                download,
+                ping,
                 head
-            ) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
             result.run_id,
-            job_id,
+            result.job_id,
+            result.sub_job_id,
             result.worker_name,
             result.is_success,
             self.result_to_json(result.download_result),

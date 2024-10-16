@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as count\n            FROM sub_jobs\n            WHERE job_id = $1 AND type = $2 AND status = 'pending'\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "sub_job_type",
+            "kind": {
+              "Enum": [
+                "combineddhp"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "add2783d33e7cd81b4746a2a347dc87cf7faec43c6c3d293a9d474b4b3ab9dbb"
+}
